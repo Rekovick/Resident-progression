@@ -240,13 +240,37 @@ textarea { width: 100%; resize: vertical; }
   .scrim { animation: fade .12s ease-out; }
   @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 }
+
+/* theatre and step ladders */
+.ltable td, .ltable th { padding: 8px 10px; }
+.ltable td.stepname { min-width: 180px; }
+.stepstate { white-space: nowrap; }
+.plan { display: grid; gap: 10px; }
+.plancase { border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 8px; min-width: 0; }
+.planrow { display: grid; grid-template-columns: minmax(120px, 180px) minmax(0, 1fr); gap: 4px 12px; align-items: start; padding: 6px 0; border-top: 1px dashed var(--line); }
+.planrow:first-of-type { border-top: 0; }
+.why { font-size: 12.5px; color: var(--muted); }
+.pickgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 12px; }
+.pickgrid label { display: flex; gap: 8px; align-items: center; padding: 3px 0; min-width: 0; }
+.caserow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
+.recstep { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 170px); gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.recstep:last-child { border-bottom: 0; }
+.seg button.txt { font-family: var(--f-body); min-width: 0; }
+@media (max-width: 640px) {
+  .planrow { grid-template-columns: 1fr; }
+  .recstep { grid-template-columns: 1fr; }
+}
 </style>
 
 <div id="app"></div>
 <div id="modal"></div>
+<datalist id="spec-list"></datalist>
 
 <script>
-/* ---------- Program rules (from the Neurosurgery Residency Progression System doc) ---------- */
+/* ======================================================================
+   Program rules, from the Neurosurgery Residency Progression System doc.
+   All values are the doc's proposed starting values; edit here to calibrate.
+   ====================================================================== */
 const LEVELS = [
   { key: "att", code: "ATT", name: "Attached", calls: "No duties" },
   { key: "j4", code: "J4", name: "4-day junior", calls: "4 on-call days a week" },
@@ -261,8 +285,10 @@ const RULE = {
   j3Points: 500, j3Cut: 6, j2Points: 1500, msCut: 18, m1Points: 2500, srCut: 30,
   passMark: 60, exam1After: 6, exam2After: 21, retakeAfter: 3,
   minor: 3, major: 15, bonusCap: 5, criticalHold: 3,
-  stepCases: 8, stepCasesBoost: 6, boostAvg: 90,
-  srII: 85, srIII: 92,
+  boostAvg: 90, srII: 85, srIII: 92, tierReviewMonths: 6,
+  openingPoints: 80, transitionMonths: 2,
+  lpBackup: 10, lpBackupBoost: 8, lpAttempts: 2,
+  wMerit: 0.4, wLearn: 30, wLearnDone: 10, wFair: 30, fairFactor: 1.5,
 };
 const REQ_TEXT = {
   att: ["Knows the hospital layout", "Can write an admission", "Can write a blood reservation", "Knows the principles of documentation", "Knows how to inform a senior with patient data"],
@@ -271,7 +297,7 @@ const REQ_TEXT = {
   m2: ["Advanced CT brain: edema, hydrocephalus, midline shift and basic measurements", "Surgical indications and ER surgeries", "Can prepare a list", "Can present a full grand round", "Can clear an ER patient who is free of neurosurgical findings", "Can inform specialists and consultants on ward and consultation cases", "Can run a shift when the senior is not available", "Can write the handover notes for the next shift", "Can make a plan for each patient"],
 };
 const REQS = Object.fromEntries(Object.entries(REQ_TEXT).map(([k, list]) => [k, list.map((t, n) => ({ id: k + "-" + (n + 1), text: t }))]));
-const REQ_LEVELS = [0, 1, 2, 4]; // levels that carry their own requirement list
+const REQ_LEVELS = [0, 1, 2, 4];
 const DUTIES = {
   j4: [["On-call shifts attended on time and covered in full", 15], ["Informing on ER patients", 10], ["Preparing ER surgical cases", 10], ["Admission sheets", 8], ["Progress notes, some written personally under supervision", 7]],
   j3: [["ER work carried forward: informing, admission sheets, surgical case preparation", 12], ["On-call shifts attended on time and covered in full", 10], ["Ward tasks for assigned patients, such as requested CTs and labs", 10], ["Progress notes for assigned cases", 7], ["Technical steps of list preparation", 6], ["Discharging assigned patients", 5]],
@@ -280,23 +306,45 @@ const DUTIES = {
   m1: [["On-call shifts covered in full, including running the shift when the senior is not available", 10], ["Teaching: examination lectures, informing, ER assessment, CT brain and exam preparation", 8], ["Full documentation for ward and ICU", 7], ["ICU patients", 7], ["Consultations", 6], ["Assessment of pre-operative and post-operative patients", 6], ["Supervising ER surgical case preparation", 4], ["Helping with list preparation", 2]],
   sr: [["Running the shift", 8], ["Supervising every duty of the levels below", 7], ["Direct contact with the specialist and consultant, informing them of every important event", 7], ["List preparation: assessment, investigations and suitability", 6], ["A plan for each patient, in consultation with the specialist", 6], ["Reviewing the full documentation", 5], ["Handover notes for the next shift and list", 4], ["Presenting morbidity and mortality cases", 3], ["Grand round backup, holding all the data", 2], ["Presenting the lectures for Exam 2", 2]],
 };
-const SURG_MIN = { j4: 3, j3: 4, j2: 4, m2: 5, m1: 5, sr: 6 };
+const SURG_MIN = { att: 0, j4: 3, j3: 4, j2: 4, m2: 5, m1: 5, sr: 6 };
 const BONUS = {
-  cover: { label: "Covered a colleague's duty at short notice", short: "Covered a duty", pts: 3 },
-  teach: { label: "Extra teaching session", short: "Extra teaching", pts: 2 },
-  commend: { label: "Written commendation from a patient or staff member", short: "Commendation", pts: 2 },
+  cover: { short: "Covered a duty", pts: 3 },
+  teach: { short: "Extra teaching", pts: 2 },
+  commend: { short: "Commendation", pts: 2 },
 };
-const TIERS = {
-  minor: { label: "Minor", hint: "Late to rounds or handover, incomplete notes, late logbook" },
-  major: { label: "Major", hint: "Missed duty, unreachable on call, disrespect, leaving a task without handover, unexcused absence from a list" },
-  critical: { label: "Critical", hint: "Dishonesty or falsified records, negligence endangering a patient, harassment, operating beyond privileges, concealing an error" },
+const TIERS = { minor: "Minor", major: "Major", critical: "Critical" };
+
+/* Step counters: [label, satisfactory performances, with boost]. Shared steps use one counter. */
+const STEP = {
+  "em.closure": ["Wound closure", 10, 8], "em.burr": ["Burr holes, including Gigli saw", 8, 6], "em.incision": ["Skin incision", 5, 4], "em.hemo": ["Hemostasis", 8, 6],
+  "cr.hitch": ["Hitch stitches", 5, 4], "cr.path": ["Pathology attack", 10, 8], "cr.final": ["Final hemostasis", 5, 4],
+  "vc.fix": ["Fixation of the device", 3, 2], "vc.cann": ["Ventricle cannulation", 10, 8], "vc.evd": ["EVD fixation", 3, 2], "ab.exp": ["Abdominal peritoneal exposure", 5, 4],
+  "vc.purse": ["Abdominal purse suture", 3, 2], "vc.res": ["Reservoir fixation", 3, 2], "vc.final": ["Final hemostasis", 3, 2],
+  "cs.wash": ["Washing the hematoma", 5, 4], "cs.dura": ["Cauterization and dural opening", 5, 4], "cs.drain": ["Drain insertion", 5, 4],
+  "sp.closure": ["Wound closure (elective)", 5, 4], "sp.inc": ["Wound incision", 5, 4], "sp.muscle": ["Muscle separation", 8, 6], "sp.hemo": ["Hemostasis", 5, 4],
+  "sp.rod": ["Rod fixation", 5, 4], "sp.screw": ["Transpedicular screw fixation", 10, 8], "sp.lam": ["Laminectomy", 10, 8], "sp.disc": ["Discectomy", 10, 8], "sp.cage": ["Cage insertion", 5, 4],
+  "tp.inc": ["Skin incisions", 3, 2], "tp.thecal": ["Thecal end insertion", 5, 4], "tp.passer": ["Passer and fixation of both ends", 3, 2],
 };
-const GROUPS = {
-  A: { examples: "Burr holes, external ventricular drain, shunt insertion, wound closure", opens: 1, opensName: "Junior", expected: 18 },
-  B: { examples: "Trauma craniotomy, decompressive craniectomy, lumbar discectomy and laminectomy, shunt revision", opens: 4, opensName: "Midsenior", expected: 36 },
-  C: { examples: "Tumor craniotomy, posterior fossa surgery, spinal instrumentation", opens: 6, opensName: "Senior", expected: 54 },
+const SHARED_NOTE = { "em.closure": "Shared across emergency cases", "em.burr": "Shared across emergency cases", "em.incision": "Shared across emergency cases", "em.hemo": "Shared across emergency cases", "ab.exp": "Shared with TP shunt", "sp.closure": "Shared by spine and TP shunt; opens after 10 emergency closures" };
+const PROCS = {
+  shared: { name: "Shared emergency steps", steps: ["em.closure", "em.burr", "em.incision", "em.hemo"], expected: 18, ladderOnly: true },
+  cranio: { name: "Emergency trauma craniotomy", kind: "emergency", steps: ["em.closure", "em.burr", "em.incision", "em.hemo", "cr.hitch", "cr.path", "cr.final"], expected: 36 },
+  vent: { name: "Emergency ventricular cannulation", kind: "emergency", steps: ["em.closure", "em.burr", "em.incision", "em.hemo", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final"], expected: 36 },
+  csdh: { name: "Chronic subdural hematoma", kind: "emergency", steps: ["em.closure", "em.burr", "cs.wash", "em.incision", "cs.dura", "cs.drain"], expected: 36 },
+  lp: { name: "Lumbar puncture", kind: "emergency", steps: [] },
+  spine: { name: "Elective spine", kind: "elective", steps: ["sp.closure", "sp.inc", "sp.muscle", "sp.hemo", "sp.rod", "sp.screw", "sp.lam", "sp.disc", "sp.cage"], optional: ["sp.rod", "sp.screw", "sp.lam", "sp.disc", "sp.cage"], expected: 54 },
+  tp: { name: "Elective theco-peritoneal shunt", kind: "elective", steps: ["sp.closure", "tp.inc", "ab.exp", "tp.thecal", "tp.passer"], expected: 54 },
+  adv: { name: "Advanced case", kind: "elective", steps: [] },
 };
-const STEPS = ["Observe", "Assist", "Perform parts under direct supervision", "Whole procedure, consultant scrubbed", "Consultant in the suite, not scrubbed"];
+const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
+const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
+/* Level ceilings: the highest steps each level may perform. */
+const CEIL_J = ["em.closure", "em.burr", "em.incision", "em.hemo", "sp.closure"];
+const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc"]);
+const CEIL = { J: new Set(CEIL_J), M: new Set(CEIL_M), S: new Set(Object.keys(STEP)) };
+const groupOf = lvl => lvl >= 6 ? "S" : lvl >= 4 ? "M" : lvl >= 1 ? "J" : "A";
+const GROUP_NAME = { J: "Junior", M: "Midsenior", S: "Senior", A: "Attached" };
+const OUTCOMES = { sat: "Satisfactory", help: "Needed help", taken: "Taken over" };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /* ---------- helpers ---------- */
@@ -305,11 +353,14 @@ const clone = o => JSON.parse(JSON.stringify(o ?? {}));
 const round1 = n => Math.round(n * 10) / 10;
 const fmt = n => n == null ? "–" : (Math.round(n * 10) / 10).toLocaleString("en-US", { maximumFractionDigits: 1 });
 function ymNow() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); }
-function todayISO() { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function todayISO() { const d = new Date(); return ymNow() + "-" + String(d.getDate()).padStart(2, "0"); }
 function ymAdd(ym, n) { const [y, m] = ym.split("-").map(Number); const t = y * 12 + (m - 1) + n; return Math.floor(t / 12) + "-" + String((t % 12) + 1).padStart(2, "0"); }
 function ymDiff(a, b) { const [ay, am] = a.split("-").map(Number), [by, bm] = b.split("-").map(Number); return (ay - by) * 12 + (am - bm); }
 function ymLabel(ym) { if (!ym) return "–"; const [y, m] = ym.split("-"); return MONTHS[+m - 1] + " " + y; }
+function dateLabel(d) { if (!d) return "–"; const [y, m, day] = d.split("-"); return +day + " " + MONTHS[+m - 1] + " " + y; }
 const validYM = s => /^\d{4}-(0[1-9]|1[0-2])$/.test(s || "");
+const uid = () => Math.random().toString(36).slice(2, 10);
+const normName = s => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
 function deepMerge(t, p) {
   for (const k in p) {
     const v = p[k];
@@ -320,8 +371,53 @@ function deepMerge(t, p) {
 }
 const pill = i => `<span class="lvl l${i}">${LEVELS[i].code}</span>`;
 const pillName = i => `<span class="lvlname">${pill(i)}${esc(LEVELS[i].name)}</span>`;
+const nm = id => (S.residents[id] && S.residents[id].name) || "Removed resident";
+
+/* ---------- state ---------- */
+const S = {
+  mode: "loading", db: null, canEdit: true,
+  residents: {}, caseDocs: {}, settings: { launch: "2026-10", specialists: [] },
+  loaded: { residents: false, cases: false },
+  view: "roster", rid: null, tab: "progress", scoreYM: ymAdd(ymNow(), -1), theatreYM: ymNow(), q: "", modal: null,
+};
+let CACHE = {};
+const invalidate = () => { CACHE = {}; };
+
+/* ---------- case log index ---------- */
+function allCases() {
+  if (CACHE.cases) return CACHE.cases;
+  const out = [];
+  Object.entries(S.caseDocs).forEach(([ym, doc]) => Object.entries((doc && doc.items) || {}).forEach(([id, c]) => { if (c) out.push(Object.assign({ id, ym }, c)); }));
+  out.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  return (CACHE.cases = out);
+}
+function cx() {
+  if (CACHE.cx) return CACHE.cx;
+  const by = {};
+  const get = id => by[id] || (by[id] = { perf: {}, months: {}, lastDate: "", lp: 0 });
+  allCases().forEach(c => {
+    (c.team || []).forEach(m => {
+      const r = get(m.rid), mo = r.months[c.ym] || (r.months[c.ym] = { assigned: 0, attended: 0 });
+      mo.assigned++; if (m.attended !== false) mo.attended++;
+      if (m.attended !== false && c.date > r.lastDate) r.lastDate = c.date;
+    });
+    Object.entries(c.perf || {}).forEach(([rid, steps]) => Object.entries(steps || {}).forEach(([key, p]) => {
+      if (!p || !p.o) return;
+      const r = get(rid), s = r.perf[key] || (r.perf[key] = { sat: 0, help: 0, taken: 0, specs: new Set(), satSpecs: [] });
+      s[p.o] = (s[p.o] || 0) + 1;
+      if (p.o === "sat") { const n = normName(p.by || c.specialist); if (n) s.specs.add(n); }
+    }));
+    if (c.proc === "lp" && c.lp) {
+      if (c.lp.result === "learner" && c.lp.learner) get(c.lp.learner).lp++;
+      if (c.lp.result === "backup" && c.lp.backup) get(c.lp.backup).lp++;
+    }
+  });
+  return (CACHE.cx = by);
+}
+const cxOf = id => cx()[id] || { perf: {}, months: {}, lastDate: "", lp: 0 };
 
 /* ---------- progression engine ---------- */
+function startOf(res) { return validYM(res.start) ? res.start : ymAdd((res.baseline && res.baseline.month) || ymNow(), -60); }
 function reqSigned(res, id, ym) {
   const lvl = LVL[id.split("-")[0]];
   if (res.baseline && res.baseline.priorReqs && lvl < res.baseline.level) return true;
@@ -332,11 +428,7 @@ function reqSigned(res, id, ym) {
 }
 const groupSigned = (res, lvl, ym) => REQS[LEVELS[lvl].key].every(r => reqSigned(res, r.id, ym));
 const reqsThrough = (res, maxLvl, ym) => REQ_LEVELS.filter(l => l <= maxLvl).every(l => groupSigned(res, l, ym));
-function reqCount(res, lvls) {
-  let s = 0, t = 0;
-  lvls.forEach(l => REQS[LEVELS[l].key].forEach(r => { t++; if (reqSigned(res, r.id)) s++; }));
-  return [s, t];
-}
+function reqCount(res, lvls) { let s = 0, t = 0; lvls.forEach(l => REQS[LEVELS[l].key].forEach(r => { t++; if (reqSigned(res, r.id)) s++; })); return [s, t]; }
 const attempts = (res, n) => (res.exams && res.exams["e" + n]) || [];
 const passedAttempt = a => a.passed === true || (a.score != null && +a.score >= RULE.passMark);
 function examPassed(res, n, ym) {
@@ -345,30 +437,32 @@ function examPassed(res, n, ym) {
   return a ? { month: a.month, score: a.score } : null;
 }
 function examEligibleFrom(res, n) {
-  let from = ymAdd(res.start, (n === 1 ? RULE.exam1After : RULE.exam2After)); // "after 6 months" = from month 7
+  let from = ymAdd(startOf(res), n === 1 ? RULE.exam1After : RULE.exam2After);
   attempts(res, n).forEach(a => { if (!passedAttempt(a)) { const r = ymAdd(a.month, RULE.retakeAfter); if (r > from) from = r; } });
   return from;
 }
-
+function surgCounts(res, ym) {
+  const rec = res.months && res.months[ym];
+  if (rec && rec.surgOverride) return { as: +rec.assigned || 0, at: Math.min(+rec.attended || 0, +rec.assigned || 0), override: true };
+  const c = cxOf(res._id).months[ym];
+  return { as: c ? c.assigned : 0, at: c ? c.attended : 0, override: false };
+}
 function scoreMonth(res, ym, lvlIdx) {
   const rec = res.months && res.months[ym];
   if (!rec) return null;
   const lk = rec.level || LEVELS[lvlIdx].key;
   const ev = rec.events || [];
-  const minors = ev.filter(e => e.tier === "minor").length;
-  const majors = ev.filter(e => e.tier === "major").length;
-  const crit = ev.filter(e => e.tier === "critical").length;
+  const minors = ev.filter(e => e.tier === "minor").length, majors = ev.filter(e => e.tier === "major").length, crit = ev.filter(e => e.tier === "critical").length;
   let duties = 0, surgery = 0, attachedPending = false;
-  if (lk === "att") {
-    const ok = groupSigned(res, 0, ym);
-    duties = ok ? 50 : 0; surgery = ok ? 20 : 0; attachedPending = !ok;
-  } else {
+  const sc = surgCounts(res, ym);
+  if (lk === "att") { const ok = groupSigned(res, 0, ym); duties = ok ? 50 : 0; surgery = ok ? 20 : 0; attachedPending = !ok; }
+  else {
     (DUTIES[lk] || []).forEach(([, p], k) => { const m = +((rec.misses || [])[k] || 0); duties += m === 0 ? p : m <= 2 ? p / 2 : 0; });
-    const as = +rec.assigned || 0, at = Math.min(+rec.attended || 0, as);
-    surgery = as > 0 ? 20 * at / as : 20;
+    surgery = sc.as > 0 ? 20 * sc.at / sc.as : 20;
   }
-  const low = r => r && r.level !== "att" && +r.assigned > 0 && (+r.attended || 0) < +r.assigned / 2;
-  const autoMajor = low(rec) && low(res.months[ymAdd(ym, -1)]) ? 1 : 0;
+  const low = (r, c) => r && r.level !== "att" && c.as > 0 && c.at < c.as / 2;
+  const prevYM = ymAdd(ym, -1);
+  const autoMajor = low(rec, sc) && low(res.months[prevYM], surgCounts(res, prevYM)) ? 1 : 0;
   const deduct = minors * RULE.minor + (majors + autoMajor) * RULE.major;
   const behavior = crit > 0 ? 0 : Math.max(0, 30 - deduct);
   const bonus = Math.min(RULE.bonusCap, (rec.bonuses || []).reduce((s, b) => s + ((BONUS[b.kind] || {}).pts || 0), 0));
@@ -376,68 +470,58 @@ function scoreMonth(res, ym, lvlIdx) {
   const effMajors = majors + autoMajor + Math.floor(minors / 3);
   const committee = rec.committee || {};
   const holdLen = crit > 0 ? (committee.demote ? 0 : Math.max(RULE.criticalHold, +committee.holdMonths || RULE.criticalHold)) : effMajors > 0 ? 1 : 0;
-  return { lk, duties: round1(duties), behavior, surgery: round1(surgery), bonus, total, minors, majors, crit, autoMajor, effMajors, holdLen, attachedPending, demote: crit > 0 && !!committee.demote, lowAttendance: low(rec) };
+  return { lk, duties: round1(duties), behavior, surgery: round1(surgery), bonus, total, minors, majors, crit, autoMajor, effMajors, holdLen, attachedPending, demote: crit > 0 && !!committee.demote, as: sc.as, at: sc.at };
 }
-
 function checkUpgrade(res, L, i, cum, ym) {
   switch (L) {
     case 0: return groupSigned(res, 0, ym) ? { to: 1, reason: "Attached requirements signed off" } : null;
     case 1:
       if (cum >= RULE.j3Points && reqsThrough(res, 1, ym)) return { to: 2, reason: "500 points with requirements signed off" };
-      if (i >= RULE.j3Cut) return { to: 2, reason: "Time cut at 6 months" };
-      return null;
-    case 2: {
+      return i >= RULE.j3Cut ? { to: 2, reason: "Time cut at 6 months" } : null;
+    case 2:
       if (!examPassed(res, 1, ym)) return null;
       if (i >= RULE.msCut) return { to: 4, reason: "Time cut at 18 months, Exam 1 passed" };
-      if (cum >= RULE.j2Points && reqsThrough(res, 2, ym)) return { to: 3, reason: "Early step: 1,500 points with Exam 1" };
-      return null;
-    }
-    case 3: return i >= RULE.msCut ? { to: 4, reason: "Time cut at 18 months" } : null;
-    case 4: {
+      return cum >= RULE.j2Points && reqsThrough(res, 2, ym) ? { to: 3, reason: "Early step: 1,500 points with Exam 1" } : null;
+    case 3:
+      if (!examPassed(res, 1, ym)) return null; // transition 2-day juniors still need Exam 1
+      return i >= RULE.msCut ? { to: 4, reason: "Time cut at 18 months, Exam 1 passed" } : null;
+    case 4:
       if (!examPassed(res, 2, ym)) return null;
       if (i >= RULE.srCut) return { to: 6, reason: "Time cut at 30 months, Exam 2 passed" };
-      if (cum >= RULE.m1Points && reqsThrough(res, 4, ym)) return { to: 5, reason: "Early step: 2,500 points with Exam 2" };
-      return null;
-    }
-    case 5: return i >= RULE.srCut ? { to: 6, reason: "Time cut at 30 months" } : null;
+      return cum >= RULE.m1Points && reqsThrough(res, 4, ym) ? { to: 5, reason: "Early step: 2,500 points with Exam 2" } : null;
+    case 5:
+      if (!examPassed(res, 2, ym)) return null;
+      return i >= RULE.srCut ? { to: 6, reason: "Time cut at 30 months, Exam 2 passed" } : null;
   }
   return null;
 }
-
-function run(res) {
-  const now = ymNow();
+function run(res, noCache) {
+  const key = "run:" + res._id;
+  if (!noCache && CACHE[key]) return CACHE[key];
+  const now = ymNow(), start = startOf(res);
   const b = res.baseline && validYM(res.baseline.month) ? res.baseline : null;
-  const from = b ? b.month : res.start;
-  let level = b ? (+b.level || 0) : 0;
-  let cum = b ? (+b.points || 0) : 0;
-  let holdEnd = -Infinity;
+  const from = b ? b.month : start;
+  let level = b ? (+b.level || 0) : 0, cum = b ? (+b.points || 0) : 0, holdEnd = -Infinity;
   const rows = [], history = [], majorIdx = [], critIdx = [];
-  if (validYM(from)) {
-    for (let ym = from; ym <= now; ym = ymAdd(ym, 1)) {
-      const i = ymDiff(ym, res.start) + 1;
-      const sc = scoreMonth(res, ym, level);
-      if (sc) {
-        cum += sc.total;
-        if (sc.holdLen) holdEnd = Math.max(holdEnd, i + sc.holdLen - 1);
-        if (sc.effMajors > 0) majorIdx.push(i);
-        if (sc.crit > 0) critIdx.push(i);
-      }
-      const completed = ym < now;
-      const onHold = holdEnd >= i;
-      const row = { ym, i, level, sc, cum: round1(cum), onHold, completed, change: null, heldBack: false };
-      if (completed) {
-        if (sc && sc.demote && level > 0) row.change = { to: level - 1, reason: "Demoted one level by committee" };
-        else {
-          const up = checkUpgrade(res, level, i, cum, ym);
-          if (up && !onHold) row.change = up;
-          else if (up) row.heldBack = true;
-        }
-        if (row.change) { history.push({ ym, i, from: level, to: row.change.to, reason: row.change.reason }); level = row.change.to; }
-      }
-      rows.push(row);
+  for (let ym = from; ym <= now; ym = ymAdd(ym, 1)) {
+    const i = ymDiff(ym, start) + 1;
+    const sc = scoreMonth(res, ym, level);
+    if (sc) {
+      cum += sc.total;
+      if (sc.holdLen) holdEnd = Math.max(holdEnd, i + sc.holdLen - 1);
+      if (sc.effMajors > 0) majorIdx.push(i);
+      if (sc.crit > 0) critIdx.push(i);
     }
+    const completed = ym < now, onHold = holdEnd >= i;
+    const row = { ym, i, level, sc, cum: round1(cum), onHold, completed, change: null, heldBack: false };
+    if (completed) {
+      if (sc && sc.demote && level > 0) row.change = { to: level - 1, reason: "Demoted one level by committee" };
+      else { const up = checkUpgrade(res, level, i, cum, ym); if (up && !onHold) row.change = up; else if (up) row.heldBack = true; }
+      if (row.change) { history.push({ ym, i, from: level, to: row.change.to, reason: row.change.reason }); level = row.change.to; }
+    }
+    rows.push(row);
   }
-  const i = validYM(res.start) ? ymDiff(now, res.start) + 1 : 0;
+  const i = ymDiff(now, start) + 1;
   const done = rows.filter(r => r.completed);
   const lastN = n => done.slice(-n);
   const avg = list => { const s = list.filter(r => r.sc); return s.length ? s.reduce((a, r) => a + r.sc.total, 0) / s.length : null; };
@@ -446,39 +530,165 @@ function run(res) {
   const holdNow = holdEnd >= i;
   const boost = last3.length === 3 && last3.every(r => r.sc) && avg3 >= RULE.boostAvg && !last3.some(r => r.onHold) && !holdNow;
   const lastIdx = done.length ? done[done.length - 1].i : i - 1;
-  const recentMajors = majorIdx.filter(x => x > lastIdx - 6);
   let twoMajors = false;
   for (let a = 0; a < majorIdx.length; a++) for (let c = a + 1; c < majorIdx.length; c++) if (majorIdx[c] - majorIdx[a] < 6 && majorIdx[c] > lastIdx - 6) twoMajors = true;
   const committee = critIdx.some(x => x > lastIdx - 6) || twoMajors;
   const lastRow = done[done.length - 1];
   const rewardExcluded = !!(lastRow && lastRow.sc && lastRow.sc.autoMajor);
-  let tier = null;
-  if (level === 6) {
-    const stepB5 = ((res.surg || {}).B || {}).step >= 5;
-    const hold6 = last6.some(r => r.onHold), hold12 = last12.some(r => r.onHold);
-    tier = { avg6, hold6, hold12, stepB5, n: avg6 != null && avg6 >= RULE.srIII && !hold12 && stepB5 ? 3 : avg6 != null && avg6 >= RULE.srII && !hold6 ? 2 : 1 };
-  }
-  const unscored = done.filter(r => !r.sc).length;
-  return { level, cum: round1(cum), i, rows, history, holdEnd, holdNow, avg3, avg6, boost, lastIdx, committee, twoMajors, recentMajors, rewardExcluded, tier, unscored };
+  const scoredSince = done.filter(r => r.sc).length;
+  const E = { level, cum: round1(cum), i, rows, history, holdEnd, holdNow, avg3, avg6, boost, lastIdx, committee, twoMajors, rewardExcluded, unscored: done.filter(r => !r.sc).length, scoredSince, last6, last12 };
+  if (!noCache) CACHE[key] = E;
+  return E;
+}
+function seniorTier(res, E) {
+  if (E.level !== 6) return null;
+  const hold6 = E.last6.some(r => r.onHold), hold12 = E.last12.some(r => r.onHold);
+  const st = surg(res);
+  const emergencyDone = BASIC_EMERGENCY.every(p => st.ladderDone(p));
+  if (E.scoredSince < RULE.tierReviewMonths) return { n: 1, firstReview: true, avg6: E.avg6, hold6, hold12, emergencyDone };
+  const n = E.avg6 >= RULE.srIII && !hold12 && emergencyDone ? 3 : E.avg6 >= RULE.srII && !hold6 ? 2 : 1;
+  return { n, avg6: E.avg6, hold6, hold12, emergencyDone };
 }
 
-function surgState(res, g, E) {
-  const s = Object.assign({ step: 1, cases: 0, signoffs: [] }, (res.surg || {})[g]);
-  const need = E.boost ? RULE.stepCasesBoost : RULE.stepCases;
-  const consultants = new Set((s.signoffs || []).map(x => (x.by || "").trim().toLowerCase()).filter(Boolean));
-  const locked = s.step >= 3 && E.level < GROUPS[g].opens; // step 4 opens at the group's level
-  const canPromote = s.step < 5 && s.cases >= need && consultants.size >= 2 && !locked;
-  const overdue = s.step < 4 && E.i > GROUPS[g].expected;
-  return { ...s, need, consultants: consultants.size, locked, canPromote, overdue };
+/* ---------- surgical ladders ---------- */
+function inTransition() { const l = S.settings.launch; if (!validYM(l)) return false; const n = ymNow(); return n >= l && n <= ymAdd(l, RULE.transitionMonths - 1); }
+function surg(res) {
+  const key = "surg:" + res._id;
+  if (res._id && CACHE[key]) return CACHE[key];
+  const E = run(res), C = cxOf(res._id), base = res.stepBase || {};
+  const g = groupOf(E.level), ceil = CEIL[g] || new Set();
+  const need = k => STEP[k][E.boost ? 2 : 1];
+  const stat = k => C.perf[k] || { sat: 0, help: 0, taken: 0, specs: new Set() };
+  const complete = k => !!base[k] || (stat(k).sat >= need(k) && stat(k).specs.size >= 2);
+  const prereqOK = k => k !== "sp.closure" || complete("em.closure");
+  const learnIndex = p => { const st = PROCS[p].steps; const ix = st.findIndex(k => !complete(k)); return ix < 0 ? st.length : ix; };
+  const learning = p => PROCS[p].steps[learnIndex(p)] || null;
+  // the first step above the ceiling in a ladder, which the boost opens with the specialist scrubbed
+  const boostStep = p => { if (!E.boost || E.holdNow) return null; return PROCS[p].steps.find(k => !ceil.has(k)) || null; };
+  const allowed = (p, k) => (ceil.has(k) || k === boostStep(p)) && prereqOK(k);
+  const ladderDone = p => PROCS[p].steps.every(complete);
+  const lpBackupAt = E.boost ? RULE.lpBackupBoost : RULE.lpBackup;
+  const out = { E, g, ceil, need, stat, complete, prereqOK, learnIndex, learning, boostStep, allowed, ladderDone, lp: C.lp + (+res.lpBase || 0), lpBackupAt, lastDate: C.lastDate };
+  out.lpBackup = out.lp >= lpBackupAt;
+  // remediation flags wait until the transition sign-off window has closed
+  const afterTransition = !validYM(S.settings.launch) || ymNow() > ymAdd(S.settings.launch, RULE.transitionMonths - 1);
+  out.overdue = res.start && afterTransition ? LADDERS.filter(p => PROCS[p].expected && E.i > PROCS[p].expected && !ladderDone(p)) : [];
+  if (res._id) CACHE[key] = out;
+  return out;
 }
 
+/* ---------- case assignment ---------- */
+function casesThisMonth(id, ym) { const m = cxOf(id).months[ym]; return m ? m.assigned : 0; }
+function priority(id, proc, caseSteps, ym, extraCount) {
+  const res = S.residents[id], E = run(res), st = surg(res);
+  const merit = (E.avg3 != null ? E.avg3 : RULE.openingPoints) * RULE.wMerit;
+  let learn = 0;
+  const L = PROCS[proc] && PROCS[proc].steps.length ? st.learning(proc) : null;
+  if (L && caseSteps.includes(L) && st.allowed(proc, L)) learn = RULE.wLearn;
+  else if (caseSteps.some(k => st.complete(k))) learn = RULE.wLearnDone;
+  const min = SURG_MIN[LEVELS[E.level].key] || 0;
+  const count = casesThisMonth(id, ym) + (extraCount || 0);
+  const fair = min ? Math.max(0, RULE.wFair * (1 - count / (RULE.fairFactor * min))) : 0;
+  return { total: round1(merit + learn + fair), merit: round1(merit), learn, fair: round1(fair), learning: L };
+}
+const priText = p => `Priority ${fmt(p.total)}: merit ${fmt(p.merit)}, learning match ${p.learn}, fair share ${fmt(p.fair)}`;
+const byPriority = (a, b) => b.pri.total - a.pri.total || (cxOf(a.id).lastDate || "") .localeCompare(cxOf(b.id).lastDate || "");
+
+/* Split a laddered case's steps among the team, lowest on the ladder first. */
+function splitSteps(proc, caseSteps, members) {
+  const ordered = members.slice().sort((a, b) => surg(S.residents[a.id]).learnIndex(proc) - surg(S.residents[b.id]).learnIndex(proc));
+  let pos = 0;
+  const team = ordered.map(m => {
+    const st = surg(S.residents[m.id]);
+    const L = st.learning(proc);
+    const learnAt = L ? caseSteps.indexOf(L) : caseSteps.length - 1;
+    const upto = learnAt < 0 ? caseSteps.findIndex(k => !st.complete(k)) - 1 : learnAt;
+    let end = pos - 1;
+    for (let k = pos; k <= Math.min(upto < 0 ? caseSteps.length - 1 : upto, caseSteps.length - 1); k++) { if (!st.allowed(proc, caseSteps[k])) break; end = k; }
+    const steps = caseSteps.slice(pos, end + 1);
+    pos = Math.max(pos, end + 1);
+    const boosted = steps.filter(k => k === st.boostStep(proc));
+    let why = steps.length ? (L && steps.includes(L) ? `Learning ${STEP[L][0].toLowerCase()}` : "Completed steps up to their ceiling") : "Observes: no steps left at their position on this ladder";
+    if (boosted.length) why += `. ${STEP[boosted[0]][0]} is one step above their ceiling with the boost, so the specialist must be scrubbed`;
+    return Object.assign({}, m, { steps, role: steps.length ? "performs" : "observes", why: (m.why ? m.why + ". " : "") + why });
+  });
+  return { team, specialistSteps: caseSteps.slice(pos) };
+}
+function planEmergency(proc, rids, ym) {
+  if (proc === "lp") return planLP(rids);
+  const steps = PROCS[proc].steps;
+  const cand = rids.map(id => ({ id, g: groupOf(run(S.residents[id]).level), pri: priority(id, proc, steps, ym) }));
+  const placed = [], observers = [];
+  ["J", "M", "S"].forEach(g => {
+    const list = cand.filter(c => c.g === g).sort(byPriority);
+    if (!list.length) return;
+    placed.push(Object.assign({}, list[0], { why: list.length > 1 ? priText(list[0].pri) : "" }));
+    list.slice(1).forEach(o => observers.push({ id: o.id, steps: [], role: "observes", why: `Observes: same level as ${nm(list[0].id)}, who has the higher priority score. ${priText(o.pri)}` }));
+  });
+  cand.filter(c => c.g === "A").forEach(o => observers.push({ id: o.id, steps: [], role: "observes", why: "Attached residents observe" }));
+  const sp = splitSteps(proc, steps, placed);
+  return { team: sp.team.concat(observers), specialistSteps: sp.specialistSteps };
+}
+function planLP(rids) {
+  const list = rids.filter(id => run(S.residents[id]).level >= 1).map(id => ({ id, n: surg(S.residents[id]).lp, backupOK: surg(S.residents[id]).lpBackup }));
+  if (!list.length) return { team: [], specialistSteps: [], lp: {} };
+  const learner = list.slice().sort((a, b) => a.n - b.n || (cxOf(a.id).lastDate || "").localeCompare(cxOf(b.id).lastDate || ""))[0];
+  const backup = list.filter(x => x.id !== learner.id && x.backupOK).sort((a, b) => b.n - a.n)[0];
+  const team = [{ id: learner.id, steps: [], role: "performs", why: `Fewest successful punctures on the team (${learner.n}). Up to ${RULE.lpAttempts} attempts.` }];
+  if (backup) team.push({ id: backup.id, steps: [], role: "backup", why: `Backup: ${backup.n} successful punctures. Records the result.` });
+  list.filter(x => x.id !== learner.id && (!backup || x.id !== backup.id)).forEach(x => team.push({ id: x.id, steps: [], role: "observes", why: "Observes" }));
+  return { team, specialistSteps: [], lp: { learner: learner.id, backup: backup ? backup.id : null }, noBackup: !backup };
+}
+function planList(cases, unavailable, ym) {
+  const extra = {};
+  const used = new Set();
+  const pool = Object.keys(S.residents).filter(id => !unavailable.includes(id) && run(S.residents[id]).level >= 1);
+  const slots = [];
+  cases.forEach((c, ci) => ["S", "M", "J"].forEach(g => slots.push({ ci, g, id: null, why: "" })));
+  const cnt = id => casesThisMonth(id, ym) + (extra[id] || 0);
+  const minOf = id => SURG_MIN[LEVELS[run(S.residents[id]).level].key] || 0;
+  const place = (slot, id, why) => { slot.id = id; slot.why = why; used.add(id); extra[id] = (extra[id] || 0) + 1; };
+  // round 1: minimums, furthest behind first
+  slots.forEach(slot => {
+    const c = pool.filter(id => !used.has(id) && groupOf(run(S.residents[id]).level) === slot.g && cnt(id) < minOf(id))
+      .sort((a, b) => (minOf(b) - cnt(b)) - (minOf(a) - cnt(a)) || (cxOf(a).lastDate || "").localeCompare(cxOf(b).lastDate || ""));
+    if (c.length) place(slot, c[0], `Below the monthly minimum (${cnt(c[0])} of ${minOf(c[0])} cases)`);
+  });
+  // round 2: reward pool by priority score
+  slots.filter(s => !s.id).forEach(slot => {
+    const cs = cases[slot.ci], steps = cs.steps || [];
+    const c = pool.filter(id => { const E = run(S.residents[id]); return !used.has(id) && groupOf(E.level) === slot.g && !E.holdNow && !E.rewardExcluded; })
+      .map(id => ({ id, pri: priority(id, cs.proc, steps, ym, extra[id] || 0) })).sort(byPriority);
+    if (c.length) place(slot, c[0].id, `Reward pool. ${priText(c[0].pri)}`);
+    else slot.why = `No ${GROUP_NAME[slot.g].toLowerCase()} available`;
+  });
+  return cases.map((cs, ci) => {
+    const members = slots.filter(s => s.ci === ci && s.id).map(s => ({ id: s.id, why: s.why, g: s.g }));
+    const empty = slots.filter(s => s.ci === ci && !s.id).map(s => s.why);
+    if (cs.proc === "adv") {
+      const closer = members.find(m => m.g === "M") || members.find(m => m.g === "S");
+      const team = members.map(m => {
+        const tier = m.g === "S" ? seniorTier(S.residents[m.id], run(S.residents[m.id])) : null;
+        const role = m === closer ? "closes" : m.g === "J" ? "observes" : "assists";
+        let extraWhy = m === closer ? "Closes the wound" : m.g === "J" ? "Observes" : "Assists the specialist";
+        if (tier && tier.n >= 2) extraWhy += tier.n === 3 ? ". Senior III: further steps at the specialist's discretion" : ". Senior II: approach steps (incision, exposure, hemostasis)";
+        return { id: m.id, steps: [], role, why: m.why + ". " + extraWhy };
+      });
+      return { team, specialistSteps: [], empty };
+    }
+    const sp = splitSteps(cs.proc, cs.steps, members);
+    return { team: sp.team, specialistSteps: sp.specialistSteps, empty };
+  });
+}
+
+/* ---------- next step text ---------- */
 function nextStep(res, E) {
-  const L = E.level, items = [];
-  const cutYM = n => ymAdd(res.start, n - 1);
+  const L = E.level, items = [], start = startOf(res);
+  const cutYM = n => ymAdd(start, n - 1);
   let title, sub = "", early = null;
   const examItem = n => {
     const p = examPassed(res, n);
-    if (p) return { state: "ok", text: `Exam ${n} passed${p.month ? " (" + ymLabel(p.month) + (p.score != null ? ", " + p.score + "/100" : "") + ")" : " before tracking"}` };
+    if (p) return { state: "ok", text: `Exam ${n} passed${p.month ? " (" + ymLabel(p.month) + (p.score != null ? ", " + p.score + "/100" : "") + ")" : " before launch"}` };
     return { state: "todo", text: `Exam ${n} not passed. Can sit from ${ymLabel(examEligibleFrom(res, n))}.` };
   };
   const reqItem = lvls => { const [s, t] = reqCount(res, lvls); return { state: s === t ? "ok" : "todo", text: `Requirements signed off: ${s} of ${t}` }; };
@@ -488,18 +698,15 @@ function nextStep(res, E) {
     const reach = E.lastIdx + Math.ceil((thr - E.cum) / E.avg3);
     return reach < cut ? `At the recent average of ${fmt(E.avg3)}, they reach ${thr.toLocaleString("en-US")} points in month ${reach} (${ymLabel(cutYM(reach))}), ahead of the cut.` : `At the recent average of ${fmt(E.avg3)}, the ${cut}-month cut comes first.`;
   };
-  if (L === 0) {
-    title = "Next: 4-day junior";
-    sub = "Moves up at the end of the first month in which the attached requirements are signed off.";
-    items.push(reqItem([0]));
-  } else if (L === 1) {
+  if (L === 0) { title = "Next: 4-day junior"; sub = "Moves up at the end of the first month in which the attached requirements are signed off."; items.push(reqItem([0])); }
+  else if (L === 1) {
     title = "Next: 3-day junior";
-    sub = `Automatically at the end of month ${RULE.j3Cut} (${ymLabel(cutYM(RULE.j3Cut))}). Earlier with 500 points and the requirements below signed off.`;
+    sub = `Automatically at the end of month ${RULE.j3Cut}, effective ${ymLabel(cutYM(RULE.j3Cut + 1))}. Earlier with 500 points and the requirements below signed off.`;
     items.push(ptsItem(RULE.j3Points), reqItem([0, 1]));
     const p = pace(RULE.j3Points, RULE.j3Cut); if (p) items.push({ state: "info", text: p });
   } else if (L === 2 || L === 3) {
     title = "Next: 2-day midsenior";
-    sub = E.i > RULE.msCut && !examPassed(res, 1) ? "The 18-month cut has passed. They move up the month after passing Exam 1." : `At the end of month ${RULE.msCut} (${ymLabel(cutYM(RULE.msCut))}) with Exam 1 passed.`;
+    sub = E.i > RULE.msCut && !examPassed(res, 1) ? "The 18-month cut has passed. They move up the month after passing Exam 1." : `At the end of month ${RULE.msCut} with Exam 1 passed, effective ${ymLabel(cutYM(RULE.msCut + 1))}.`;
     items.push(examItem(1));
     if (L === 2 && E.i <= RULE.msCut) {
       early = { title: "Early step: 2-day junior", items: [ptsItem(RULE.j2Points), examItem(1), reqItem([0, 1, 2])] };
@@ -507,50 +714,46 @@ function nextStep(res, E) {
     }
   } else if (L === 4 || L === 5) {
     title = "Next: Senior";
-    sub = E.i > RULE.srCut && !examPassed(res, 2) ? "The 30-month cut has passed. They move up the month after passing Exam 2." : `At the end of month ${RULE.srCut} (${ymLabel(cutYM(RULE.srCut))}) with Exam 2 passed.`;
+    sub = E.i > RULE.srCut && !examPassed(res, 2) ? "The 30-month cut has passed. They move up the month after passing Exam 2." : `At the end of month ${RULE.srCut} with Exam 2 passed, effective ${ymLabel(cutYM(RULE.srCut + 1))}.`;
     items.push(examItem(2));
     if (L === 4 && E.i <= RULE.srCut) {
       early = { title: "Early step: 1-day midsenior", items: [ptsItem(RULE.m1Points), examItem(2), reqItem([0, 1, 2, 4])] };
       const p = pace(RULE.m1Points, RULE.srCut); if (p) early.items.push({ state: "info", text: p });
     }
   } else {
-    const t = E.tier;
+    const t = seniorTier(res, E);
     title = `Senior ${["I", "II", "III"][t.n - 1]}`;
-    sub = "Tiers follow the running 6-month average and are reviewed every 6 months. They can go down as well as up.";
+    sub = t.firstReview ? `Every senior starts at Senior I. Tiers are first reviewed after ${RULE.tierReviewMonths} months of scores (${E.scoredSince} so far).` : "Tiers follow the running 6-month average, are reviewed every 6 months, and can go down as well as up.";
     items.push({ state: t.avg6 >= RULE.srII ? "ok" : "todo", text: `6-month average: ${fmt(t.avg6)} (Senior II needs ${RULE.srII}, Senior III needs ${RULE.srIII})` });
     items.push({ state: t.hold6 ? "block" : "ok", text: t.hold6 ? "A hold in the last 6 months" : "No hold in the last 6 months" });
     items.push({ state: t.hold12 ? "todo" : "ok", text: t.hold12 ? "A hold in the last 12 months (blocks Senior III)" : "No hold in the last 12 months" });
-    items.push({ state: t.stepB5 ? "ok" : "todo", text: t.stepB5 ? "Step 5 on Group B" : "Senior III needs step 5 on Group B" });
+    items.push({ state: t.emergencyDone ? "ok" : "todo", text: t.emergencyDone ? "Every basic emergency ladder completed" : "Senior III needs every basic emergency ladder completed" });
   }
-  if (E.holdNow) items.unshift({ state: "block", text: `On hold through ${ymLabel(cutYM(E.holdEnd))}. No upgrade by points or by time until it ends.` });
+  if (E.holdNow) items.unshift({ state: "block", text: `On hold through ${ymLabel(ymAdd(start, E.holdEnd - 1))}. No upgrade by points or by time, and no surgical rewards, until it ends.` });
   return { title, sub, items, early };
 }
-
 function shortNext(res, E) {
-  if (!validYM(res.start)) return "";
-  if (E.i < 1) return "Starts " + ymLabel(res.start);
-  if (E.holdNow) return "On hold through " + ymLabel(ymAdd(res.start, E.holdEnd - 1));
-  const L = E.level;
-  if (L === 0) { const [s, t] = reqCount(res, [0]); return `Attached requirements ${s}/${t}`; }
-  if (L === 1) return `3-day junior by ${ymLabel(ymAdd(res.start, RULE.j3Cut - 1))} (${fmt(E.cum)}/500 pts)`;
-  if (L === 2 || L === 3) return examPassed(res, 1) ? `Midsenior after ${ymLabel(ymAdd(res.start, RULE.msCut - 1))}` : `Needs Exam 1 (from ${ymLabel(examEligibleFrom(res, 1))})`;
-  if (L === 4 || L === 5) return examPassed(res, 2) ? `Senior after ${ymLabel(ymAdd(res.start, RULE.srCut - 1))}` : `Needs Exam 2 (from ${ymLabel(examEligibleFrom(res, 2))})`;
-  return `Senior ${["I", "II", "III"][E.tier.n - 1]}`;
+  if (res.start && E.i < 1) return "Starts " + ymLabel(res.start);
+  if (E.holdNow) return "On hold through " + ymLabel(ymAdd(startOf(res), E.holdEnd - 1));
+  const L = E.level, s = startOf(res);
+  if (L === 0) { const [a, t] = reqCount(res, [0]); return `Attached requirements ${a}/${t}`; }
+  if (L === 1) return `3-day junior from ${ymLabel(ymAdd(s, RULE.j3Cut))}`;
+  if (L === 2 || L === 3) return examPassed(res, 1) ? `Midsenior from ${ymLabel(ymAdd(s, RULE.msCut))}` : E.i > RULE.msCut ? "Midsenior once Exam 1 is passed" : `Midsenior from ${ymLabel(ymAdd(s, RULE.msCut))}, needs Exam 1`;
+  if (L === 4 || L === 5) return examPassed(res, 2) ? `Senior from ${ymLabel(ymAdd(s, RULE.srCut))}` : E.i > RULE.srCut ? "Senior once Exam 2 is passed" : `Senior from ${ymLabel(ymAdd(s, RULE.srCut))}, needs Exam 2`;
+  return `Senior ${["I", "II", "III"][seniorTier(res, E).n - 1]}`;
 }
-
 function statusChips(res, E) {
   const c = [];
   if (E.holdNow) c.push(`<span class="chip hold">On hold</span>`);
   if (E.committee) c.push(`<span class="chip hold">Committee review</span>`);
   if (E.unscored) c.push(`<span class="chip warn">${E.unscored} month${E.unscored > 1 ? "s" : ""} unscored</span>`);
-  if (Object.keys(GROUPS).some(g => surgState(res, g, E).overdue)) c.push(`<span class="chip warn">Surgical remediation</span>`);
+  if (surg(res).overdue.length) c.push(`<span class="chip warn">Surgical remediation</span>`);
   if (E.rewardExcluded) c.push(`<span class="chip warn">No reward-pool cases</span>`);
   if (E.boost) c.push(`<span class="chip accent">Boost</span>`);
   return c.join("");
 }
 
-/* ---------- state & storage ---------- */
-const S = { mode: "loading", db: null, canEdit: true, live: {}, residents: {}, demo: false, view: "roster", rid: null, tab: "progress", scoreYM: ymAdd(ymNow(), -1), q: "", modal: null };
+/* ---------- storage ---------- */
 let toastTimer;
 function toast(msg) {
   let t = document.querySelector(".toast");
@@ -558,316 +761,256 @@ function toast(msg) {
   t.textContent = msg; t.hidden = false;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2200);
 }
-const dbErr = e => e && e.code === "quota_exceeded" ? "The tracker is full. Delete residents you no longer need." : e && e.code === "invalid_argument" ? "You need edit access to change records." : "Could not save. Check your connection and try again.";
-const writesLocal = () => S.demo || S.mode !== "live";
+const dbErr = e => e && e.code === "quota_exceeded" ? "The tracker's storage is full." : e && e.code === "invalid_argument" ? "You need edit access to change records." : "Could not save. Check your connection and try again.";
+const local = () => S.mode !== "live";
 async function patchResident(id, patch, msg) {
-  if (writesLocal()) { S.residents[id] = deepMerge(clone(S.residents[id]), patch); render(); if (msg) toast(msg); return true; }
-  try { await S.db.doc("residents/" + id).update(patch); if (msg) toast(msg); return true; }
-  catch (e) { toast(dbErr(e)); return false; }
+  if (local()) { S.residents[id] = deepMerge(clone(S.residents[id]), patch); S.residents[id]._id = id; invalidate(); render(); if (msg) toast(msg); return true; }
+  try { await S.db.doc("residents/" + id).update(patch); if (msg) toast(msg); return true; } catch (e) { toast(dbErr(e)); return false; }
+}
+async function setResident(id, obj) {
+  const body = clone(obj); delete body._id;
+  if (local()) { S.residents[id] = Object.assign(body, { _id: id }); invalidate(); render(); return true; }
+  try { await S.db.doc("residents/" + id).set(body); return true; } catch (e) { toast(dbErr(e)); return false; }
 }
 async function createResident(obj) {
-  if (writesLocal()) { const id = "r" + Math.random().toString(36).slice(2, 10); S.residents[id] = clone(obj); render(); return id; }
-  try { const ref = S.db.collection("residents").doc(); await ref.set(obj); return ref.id; }
-  catch (e) { toast(dbErr(e)); return null; }
+  const id = local() ? "r" + uid() : S.db.collection("residents").doc().id;
+  return (await setResident(id, obj)) ? id : null;
 }
 async function deleteResident(id) {
-  if (writesLocal()) { delete S.residents[id]; render(); return; }
+  if (local()) { delete S.residents[id]; invalidate(); render(); return; }
   try { await S.db.doc("residents/" + id).delete(); } catch (e) { toast(dbErr(e)); }
 }
+async function saveCases(map) { // map: {id: caseObj|null}
+  const byYM = {};
+  Object.entries(map).forEach(([id, c]) => { const ym = c ? c.date.slice(0, 7) : (allCases().find(x => x.id === id) || {}).ym; if (ym) (byYM[ym] = byYM[ym] || {})[id] = c; });
+  for (const [ym, items] of Object.entries(byYM)) {
+    if (local()) { const d = S.caseDocs[ym] = S.caseDocs[ym] || { items: {} }; Object.assign(d.items, clone(items)); continue; }
+    try {
+      if (S.caseDocs[ym]) await S.db.doc("cases/" + ym).update({ items });
+      else await S.db.doc("cases/" + ym).set({ items });
+    } catch (e) { toast(dbErr(e)); return false; }
+  }
+  if (local()) { invalidate(); render(); }
+  return true;
+}
+async function saveSettings(patch) {
+  if (local()) { Object.assign(S.settings, patch); invalidate(); render(); return true; }
+  try { await S.db.doc("settings/program").set(Object.assign({}, S.settings, patch)); return true; } catch (e) { toast(dbErr(e)); return false; }
+}
 function newResident(name, start, baseline) {
-  return { name, start, baseline: baseline || null, reqs: {}, exams: { e1: [], e2: [] }, months: {}, surg: { A: { step: 1, cases: 0, signoffs: [] }, B: { step: 1, cases: 0, signoffs: [] }, C: { step: 1, cases: 0, signoffs: [] } }, notes: "", createdAt: new Date().toISOString() };
-}
-
-/* ---------- example residents (in memory only, from the doc's worked examples) ---------- */
-function demoResidents() {
-  const now = ymNow(), start = ymAdd(now, -21);
-  const at = i => ymAdd(start, i - 1);
-  const spec = [
-    { name: "Resident A (example)", avg: 100, e1: [[14, 81]] },
-    { name: "Resident B (example)", avg: 90, e1: [[16, 72]] },
-    { name: "Resident C (example)", avg: 80, e1: [[17, 66]] },
-    { name: "Resident D (example)", avg: 95, e1: [[14, 52], [21, 70]] },
-    { name: "Resident E (example)", avg: 90, e1: [[16, 75]], major: 18 },
-  ];
-  const out = {};
-  spec.forEach((s, n) => {
-    const r = newResident(s.name, start, null);
-    REQ_LEVELS.slice(0, 3).forEach((l, k) => REQS[LEVELS[l].key].forEach(q => { r.reqs[q.id] = { d1: at([1, 2, 7][k]) + "-08", d2: at([1, 4, 10][k]) + "-20" }; }));
-    r.exams.e1 = s.e1.map(([i, sc]) => ({ month: at(i), score: sc }));
-    for (let i = 1; i <= 21; i++) {
-      const ym = at(i);
-      const lk = LEVELS[run(r).rows.find(x => x.ym === ym).level].key;
-      const rec = demoRec(lk, s.avg);
-      if (s.major === i) rec.events.push({ tier: "major", date: ym + "-11", note: "Unreachable on call", by: "Night consultant" });
-      r.months[ym] = rec;
-    }
-    r.surg.A = { step: s.avg >= 90 ? 4 : 3, cases: 5, signoffs: [{ by: "Consultant 1", date: at(19) + "-04" }] };
-    r.surg.B = { step: 2, cases: 3, signoffs: [] };
-    out["demo" + n] = r;
-  });
-  return out;
-}
-function demoRec(lk, target) {
-  if (lk === "att") return { level: "att", misses: [], events: [], bonuses: [], assigned: 0, attended: 0 };
-  const lines = DUTIES[lk], misses = lines.map(() => 0), as = SURG_MIN[lk];
-  let att = as, gap = 100 - target;
-  const per = 20 / as;
-  while (gap >= per - 0.01 && (as - att + 1) <= as / 2) { att--; gap -= per; }
-  lines.map((_, k) => k).sort((a, b) => lines[b][1] - lines[a][1]).forEach(k => { if (lines[k][1] / 2 <= gap + 0.01) { misses[k] = 1; gap -= lines[k][1] / 2; } });
-  return { level: lk, misses, events: [], bonuses: [], assigned: as, attended: att };
+  return { name, start: start || null, startNote: "", baseline: baseline || null, reqs: {}, exams: { e1: [], e2: [] }, months: {}, stepBase: {}, lpBase: 0, notes: "", createdAt: new Date().toISOString() };
 }
 
 /* ---------- rendering ---------- */
 const app = document.getElementById("app");
 const modalRoot = document.getElementById("modal");
-
 function render() {
   const a = document.activeElement, fid = a && a.id, sel = a && a.selectionStart;
   app.innerHTML = topBar() + `<main class="wrap">${banner()}${view()}</main>`;
+  document.getElementById("spec-list").innerHTML = (S.settings.specialists || []).map(s => `<option value="${esc(s)}"></option>`).join("");
   if (fid) { const el = document.getElementById(fid); if (el) { el.focus(); try { if (sel != null) el.setSelectionRange(sel, sel); } catch (e) {} } }
 }
 function topBar() {
-  const nav = [["roster", "Residents"], ["scoring", "Monthly scoring"], ["rules", "Program rules"]];
+  const nav = [["roster", "Residents"], ["scoring", "Monthly scoring"], ["theatre", "Theatre"], ["rules", "Program rules"], ["settings", "Settings"]];
   const cur = S.view === "resident" ? "roster" : S.view;
-  const chip = S.demo ? `<span class="modechip demo"><span class="dot"></span>Examples</span>` : S.mode === "live" ? `<span class="modechip live"><span class="dot"></span>Shared${S.canEdit ? "" : " · view only"}</span>` : S.mode === "loading" ? `<span class="modechip"><span class="dot"></span>Connecting</span>` : `<span class="modechip"><span class="dot"></span>Not saved</span>`;
+  const chip = S.mode === "live" ? `<span class="modechip live"><span class="dot"></span>Shared${S.canEdit ? "" : " · view only"}</span>` : S.mode === "loading" ? `<span class="modechip"><span class="dot"></span>Connecting</span>` : `<span class="modechip"><span class="dot"></span>Not saved</span>`;
   return `<header class="top"><div class="wrap top-in">
     <div class="brand">${logo()}<div><div class="b1">Neurosurgery Residency</div><div class="b2">Progression tracker</div></div></div>
-    <nav aria-label="Sections">${nav.map(([k, l]) => `<button class="navbtn" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}>${l}</button>`).join("")}</nav>
-    ${chip}
+    <nav aria-label="Sections">${nav.map(([k, l]) => `<button class="navbtn" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}>${l}</button>`).join("")}</nav>${chip}
   </div></header>`;
 }
 function logo() {
-  // seven rungs, one per duty level
   const bars = LEVELS.map((_, i) => `<rect x="${2 + i * 4.3}" y="${26 - (i + 1) * 3.2}" width="3.2" height="${(i + 1) * 3.2}" rx="1" fill="var(--l${i})"/>`).join("");
   return `<svg width="34" height="28" viewBox="0 0 34 28" aria-hidden="true">${bars}</svg>`;
 }
 function banner() {
-  if (S.demo) return `<div class="banner">You are looking at example residents built from the doc's worked examples. Nothing here is saved. <button class="btn sm" data-act="demo-off">Back to the department</button></div>`;
-  if (S.mode === "offline") return `<div class="banner">This copy is not connected to the shared tracker, so changes stay in this browser tab and are lost when it closes. Open the tracker from its claude.ai link to save records.</div>`;
-  return "";
+  const out = [];
+  if (S.mode === "offline") out.push(`<div class="banner">This copy is not connected to the shared tracker, so changes stay in this tab and are lost when it closes. Open the tracker from its claude.ai link to save records.</div>`);
+  if (S.mode === "live" && inTransition()) out.push(`<div class="note">Transition period (${ymLabel(S.settings.launch)} to ${ymLabel(ymAdd(S.settings.launch, RULE.transitionMonths - 1))}): any step within a resident's ceiling can be completed by two satisfactory performances observed by two different specialists. Use <strong>Transition sign-off</strong> on a resident's surgical ladders.</div>`);
+  return out.join("");
 }
 function view() {
   if (S.view === "resident" && S.residents[S.rid]) return residentView();
-  if (S.view === "scoring") return scoringView();
-  if (S.view === "rules") return rulesView();
-  return rosterView();
+  return ({ scoring: scoringView, theatre: theatreView, rules: rulesView, settings: settingsView }[S.view] || rosterView)();
 }
-
 function sortedIds() {
-  return Object.keys(S.residents).sort((a, b) => {
-    const ra = S.residents[a], rb = S.residents[b];
-    const la = run(ra).level, lb = run(rb).level;
-    return lb - la || String(ra.name).localeCompare(String(rb.name));
-  });
+  return Object.keys(S.residents).sort((a, b) => run(S.residents[b]).level - run(S.residents[a]).level || startOf(S.residents[a]).localeCompare(startOf(S.residents[b])) || String(S.residents[a].name).localeCompare(String(S.residents[b].name)));
 }
-
 function rosterView() {
-  const ids = sortedIds();
-  const can = S.canEdit;
+  const ids = sortedIds(), can = S.canEdit;
   const actions = can ? `<button class="btn" data-act="import">Import a list</button><button class="btn primary" data-act="add">Add resident</button>` : "";
   if (S.mode === "loading") return `<div class="head"><h1>Residents</h1></div><div class="card empty"><p class="muted">Loading the department's residents…</p></div>`;
-  if (!ids.length) {
-    return `<div class="head"><h1>Residents</h1><div class="actions">${actions}</div></div>
-    <div class="card empty">
-      <h2>Add the department's residents</h2>
-      <p class="muted">Start with the people already in the program. For each one, enter when they started and the level they hold now, and the tracker takes it from there: monthly scores, requirements, exams, holds and the surgical ladder. You can add them one at a time or paste the whole list.</p>
-      ${can ? `<div class="row"><button class="btn primary" data-act="add">Add resident</button><button class="btn" data-act="import">Import a list</button></div>` : `<p class="muted">You have view access. Ask the program director for edit access to add residents.</p>`}
-      ${S.demo ? "" : `<p class="small muted">Want to see it working first? <button class="linkbtn" data-act="demo-on">Look at example residents</button>. They are not saved.</p>`}
-    </div>`;
-  }
-  const engines = Object.fromEntries(ids.map(id => [id, run(S.residents[id])]));
-  const counts = LEVELS.map((_, i) => ids.filter(id => engines[id].level === i).length);
+  if (!ids.length) return `<div class="head"><h1>Residents</h1><div class="actions">${actions}</div></div>
+    <div class="card empty"><h2>Add the department's residents</h2><p class="muted">For each resident, enter when they started and the level they hold now. The tracker takes it from there.</p>
+    ${can ? `<div class="row"><button class="btn primary" data-act="add">Add resident</button><button class="btn" data-act="import">Import a list</button></div>` : `<p class="muted">You have view access. Ask the program director for edit access.</p>`}</div>`;
+  const counts = LEVELS.map((_, i) => ids.filter(id => run(S.residents[id]).level === i).length);
   const max = Math.max(1, ...counts);
   const lastYM = ymAdd(ymNow(), -1);
-  const tracked = ids.filter(id => engines[id].rows.some(r => r.ym === lastYM));
+  const tracked = ids.filter(id => run(S.residents[id]).rows.some(r => r.ym === lastYM));
   const scored = tracked.filter(id => (S.residents[id].months || {})[lastYM]);
   const ql = S.q.trim().toLowerCase();
   const shown = ids.filter(id => !ql || String(S.residents[id].name).toLowerCase().includes(ql));
-  const holds = ids.filter(id => engines[id].holdNow).length;
+  const holds = ids.filter(id => run(S.residents[id]).holdNow).length;
   return `<div class="head"><div><h1>Residents</h1><p class="muted">${ids.length} in the program${holds ? ` · ${holds} on hold` : ""}</p></div><div class="actions">${actions}</div></div>
   <div class="grid2">
-    <div class="card stack">
-      <div class="label">Department mix by duty level</div>
+    <div class="card stack"><div class="label">Department mix by duty level</div>
       <div class="mix">${counts.map((n, i) => `<div class="mixcol"><div class="mixn">${n}</div><div class="mixbar l${i}" style="height:${6 + n / max * 72}px"></div><div class="mixlab">${esc(LEVELS[i].name)}</div></div>`).join("")}</div>
-      <div class="mixgroups"><div>Juniors ${counts.slice(0, 4).reduce((a, b) => a + b, 0)}</div><div>Midseniors ${counts[4] + counts[5]}</div><div>Seniors ${counts[6]}</div></div>
-    </div>
-    <div class="card stack">
-      <div class="label">Scoring for ${ymLabel(lastYM)}</div>
+      <div class="mixgroups"><div>Juniors ${counts.slice(0, 4).reduce((a, b) => a + b, 0)}</div><div>Midseniors ${counts[4] + counts[5]}</div><div>Seniors ${counts[6]}</div></div></div>
+    <div class="card stack">${tracked.length ? `<div class="label">Scoring for ${ymLabel(lastYM)}</div>
       <div class="row"><span class="num" style="font-size:28px;font-weight:600">${scored.length}<span class="muted" style="font-size:16px"> / ${tracked.length}</span></span><span class="muted">residents scored</span></div>
-      <div class="progress"><span style="width:${tracked.length ? scored.length / tracked.length * 100 : 0}%"></span></div>
-      <p class="small muted">Totals are checked at the end of each month and upgrades take effect on the 1st. Score last month so this month's levels are right.</p>
-      <div><button class="btn" data-act="nav" data-v="scoring">Open monthly scoring</button></div>
-    </div>
+      <div class="progress"><span style="width:${scored.length / tracked.length * 100}%"></span></div>` : `<div class="label">Scoring</div><p>The first scores are due for ${ymLabel(S.settings.launch || ymNow())}, at the end of the month.</p>`}
+      <p class="small muted">Totals are checked at the end of each month and upgrades take effect on the 1st.</p>
+      <div class="row"><button class="btn" data-act="nav" data-v="scoring">Monthly scoring</button><button class="btn" data-act="nav" data-v="theatre">Theatre</button></div></div>
   </div>
   <div class="row"><input class="search" id="q" type="search" placeholder="Find a resident" value="${esc(S.q)}" aria-label="Find a resident"></div>
   <div class="tablewrap"><table>
     <thead><tr><th>Resident</th><th>Level</th><th class="r">Month</th><th class="r">Points</th><th>Exams</th><th>Next</th><th>Status</th></tr></thead>
-    <tbody>${shown.map(id => { const r = S.residents[id], E = engines[id]; const e1 = examPassed(r, 1), e2 = examPassed(r, 2);
-      return `<tr class="click" data-act="open" data-id="${id}" tabindex="0">
-        <td class="rname">${esc(r.name)}</td><td>${pillName(E.level)}</td>
-        <td class="r num">${E.i >= 1 ? E.i : "–"}</td><td class="r num">${fmt(E.cum)}</td>
-        <td><div class="chips"><span class="chip ${e1 ? "ok" : ""}">E1 ${e1 ? "passed" : "–"}</span><span class="chip ${e2 ? "ok" : ""}">E2 ${e2 ? "passed" : "–"}</span></div></td>
+    <tbody>${shown.map(id => { const r = S.residents[id], E = run(r), e1 = examPassed(r, 1), e2 = examPassed(r, 2);
+      return `<tr class="click" data-act="open" data-id="${id}" tabindex="0"><td class="rname">${esc(r.name)}</td><td>${pillName(E.level)}</td>
+        <td class="r num">${r.start ? (E.i >= 1 ? E.i : "–") : `<span class="small muted">${esc(r.startNote || "–")}</span>`}</td><td class="r num">${fmt(E.cum)}</td>
+        <td><div class="chips"><span class="chip ${e1 ? "ok" : ""}">E1 ${e1 ? "✓" : "–"}</span><span class="chip ${e2 ? "ok" : ""}">E2 ${e2 ? "✓" : "–"}</span></div></td>
         <td class="nextcell">${esc(shortNext(r, E))}</td><td><div class="chips">${statusChips(r, E)}</div></td></tr>`; }).join("") || `<tr><td colspan="7" class="muted">No resident matches "${esc(S.q)}".</td></tr>`}</tbody>
   </table></div>`;
 }
 
 function residentView() {
   const res = S.residents[S.rid], E = run(res);
-  const tabs = [["progress", "Progress"], ["scores", "Monthly scores"], ["reqs", "Requirements"], ["exams", "Exams"], ["surgery", "Surgical ladder"], ["profile", "Profile"]];
+  const tabs = [["progress", "Progress"], ["scores", "Monthly scores"], ["reqs", "Requirements"], ["exams", "Exams"], ["surgery", "Surgical ladders"], ["profile", "Profile"]];
   const body = { progress: tabProgress, scores: tabScores, reqs: tabReqs, exams: tabExams, surgery: tabSurgery, profile: tabProfile }[S.tab] || tabProgress;
-  return `<div class="rhead">
-    <button class="btn ghost back" data-act="nav" data-v="roster">← All residents</button>
+  return `<div class="rhead"><button class="btn ghost back" data-act="nav" data-v="roster">← All residents</button>
     <div class="rtitle"><h1>${esc(res.name)}</h1>${pillName(E.level)}<div class="chips">${statusChips(res, E)}</div></div>
     <div class="facts">
-      <div class="fact"><div class="label">Month in program</div><div class="v">${E.i >= 1 ? E.i : "–"}</div></div>
-      <div class="fact"><div class="label">Started</div><div class="v" style="font-size:16px">${ymLabel(res.start)}</div></div>
+      <div class="fact"><div class="label">Month in program</div><div class="v">${res.start ? (E.i >= 1 ? E.i : "–") : esc(res.startNote || "–")}</div></div>
+      <div class="fact"><div class="label">Started</div><div class="v" style="font-size:16px">${res.start ? ymLabel(res.start) : "Not recorded"}</div></div>
       <div class="fact"><div class="label">Total points</div><div class="v">${fmt(E.cum)}</div></div>
       <div class="fact"><div class="label">3-month average</div><div class="v">${fmt(E.avg3)}</div></div>
       <div class="fact"><div class="label">On call</div><div class="v" style="font-size:16px">${esc(LEVELS[E.level].calls)}</div></div>
-    </div>
-  </div>
+    </div></div>
   <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="tab" role="tab" data-act="tab" data-v="${k}" aria-selected="${S.tab === k}">${l}</button>`).join("")}</div>
   ${body(res, E)}`;
 }
-
 function checkList(items) {
-  return `<ul class="checks">${items.map(it => `<li><span class="tick ${it.state === "info" ? "" : it.state}">${it.state === "ok" ? "✓" : it.state === "block" ? "!" : it.state === "info" ? "" : ""}</span><div class="stack" style="gap:4px"><span class="${it.state === "info" ? "muted small" : ""}">${esc(it.text)}</span>${it.pct != null ? `<div class="progress"><span style="width:${it.pct}%"></span></div>` : ""}</div></li>`).join("")}</ul>`;
+  return `<ul class="checks">${items.map(it => `<li><span class="tick ${it.state === "info" ? "" : it.state}">${it.state === "ok" ? "✓" : it.state === "block" ? "!" : ""}</span><div class="stack" style="gap:4px"><span class="${it.state === "info" ? "muted small" : ""}">${esc(it.text)}</span>${it.pct != null ? `<div class="progress"><span style="width:${it.pct}%"></span></div>` : ""}</div></li>`).join("")}</ul>`;
 }
-
 function tabProgress(res, E) {
-  const ns = nextStep(res, E);
+  const ns = nextStep(res, E), st = surg(res);
   const reached = {}; E.history.forEach(h => { reached[h.to] = h; });
   const startLvl = res.baseline ? +res.baseline.level : 0;
   const cut = { 2: RULE.j3Cut, 4: RULE.msCut, 6: RULE.srCut };
   const ladder = LEVELS.map((l, i) => {
     let when;
-    if (reached[i]) when = `<span class="small">End of month ${reached[i].i} · ${esc(reached[i].reason)}</span>`;
-    else if (i === startLvl && i <= E.level) when = `<span class="small muted">${res.baseline ? "Level when tracking began, " + ymLabel(res.baseline.month) : "Day one"}</span>`;
-    else if (i < E.level) when = `<span class="small muted">Before tracking</span>`;
-    else if (cut[i]) when = `<span class="small muted">Time cut: end of month ${cut[i]} (${ymLabel(ymAdd(res.start, cut[i] - 1))})</span>`;
-    else when = `<span class="small muted">${i === 3 || i === 5 ? "Early step only" : i === 1 ? "End of month 1 at the earliest" : ""}</span>`;
+    if (reached[i]) when = `<span class="small">From ${ymLabel(ymAdd(reached[i].ym, 1))} · ${esc(reached[i].reason)}</span>`;
+    else if (i === startLvl && i <= E.level) when = `<span class="small muted">${res.baseline ? "Level at launch, " + ymLabel(res.baseline.month) : "Day one"}</span>`;
+    else if (i < E.level) when = `<span class="small muted">Before launch</span>`;
+    else if (cut[i] && res.start) when = `<span class="small muted">Time cut: from ${ymLabel(ymAdd(res.start, cut[i]))}</span>`;
+    else when = `<span class="small muted">${i === 3 || i === 5 ? "Early step only" : ""}</span>`;
     return `<div class="rung ${i === E.level ? "now" : i > E.level ? "future" : ""}">${pill(i)}<div><div class="rname">${esc(l.name)}</div>${when}</div><span class="small muted">${esc(l.calls)}</span></div>`;
   }).reverse().join("");
   const flags = [];
   if (E.committee) flags.push(`<div class="note hold">${E.twoMajors ? "Two major events within 6 months." : "A critical event in the last 6 months."} This goes to committee review (program director and two consultants).</div>`);
   if (E.rewardExcluded) flags.push(`<div class="note warn">Missed more than half of the assigned cases two months running. That counts as a major event, and they get no places from the reward pool this month.</div>`);
-  if (E.boost) flags.push(`<div class="note">Averaging ${fmt(E.avg3)} over the last 3 months with no hold: first pick from the reward pool, assessment after ${RULE.stepCasesBoost} logged cases instead of ${RULE.stepCases}, and access to the next procedure group one level early, up to step 3.</div>`);
+  if (E.boost) flags.push(`<div class="note">Boost: averaging ${fmt(E.avg3)} over the last 3 months with no hold. Lower step counts, and one step above their ceiling with the specialist scrubbed.</div>`);
+  if (st.overdue.length) flags.push(`<div class="note warn">Behind the expected date on: ${st.overdue.map(p => esc(PROCS[p].name)).join(", ")}. Set up a remediation plan with assigned cases and a named specialist.</div>`);
   if (E.unscored) flags.push(`<div class="note warn">${E.unscored} completed month${E.unscored > 1 ? "s have" : " has"} no score. Unscored months add no points. <button class="linkbtn" data-act="tab" data-v="scores">Score them</button></div>`);
-  return `<div class="grid2">
-    <div class="card stack">
-      <h2>${esc(ns.title)}</h2><p class="muted">${esc(ns.sub)}</p>${checkList(ns.items)}
-      ${ns.early ? `<div class="stack" style="margin-top:6px;padding-top:12px;border-top:1px solid var(--line)"><h3>${esc(ns.early.title)}</h3><p class="small muted">Reduces on-call days without changing rank.</p>${checkList(ns.early.items)}</div>` : ""}
-    </div>
-    <div class="card stack"><h2>Level ladder</h2><div class="ladder">${ladder}</div></div>
-  </div>${flags.length ? `<div class="stack">${flags.join("")}</div>` : ""}`;
+  return `<div class="grid2"><div class="card stack"><h2>${esc(ns.title)}</h2><p class="muted">${esc(ns.sub)}</p>${checkList(ns.items)}
+      ${ns.early ? `<div class="stack" style="margin-top:6px;padding-top:12px;border-top:1px solid var(--line)"><h3>${esc(ns.early.title)}</h3><p class="small muted">Reduces on-call days without changing rank.</p>${checkList(ns.early.items)}</div>` : ""}</div>
+    <div class="card stack"><h2>Level ladder</h2><div class="ladder">${ladder}</div></div></div>
+  ${flags.length ? `<div class="stack">${flags.join("")}</div>` : ""}`;
 }
-
 function tabScores(res, E) {
   const rows = E.rows.slice().reverse();
   if (!rows.length) return `<div class="card"><p class="muted">Tracking starts ${ymLabel(res.baseline ? res.baseline.month : res.start)}.</p></div>`;
-  return `<p class="muted small">A perfect month is 100: duties 50, behavior 30, surgery 20, with bonuses offsetting deductions up to 100. ${S.canEdit ? "Select a month to score it." : ""}</p>
-  <div class="tablewrap"><table>
-  <thead><tr><th>Month</th><th class="r">#</th><th>Level</th><th class="r">Duties</th><th class="r">Behavior</th><th class="r">Surgery</th><th class="r">Bonus</th><th class="r">Total</th><th class="r">Running</th><th>Notes</th></tr></thead>
-  <tbody>${rows.map(r => { const s = r.sc; const notes = [];
+  return `<p class="muted small">A perfect month is 100: duties 50, behavior 30, surgery 20. ${res.baseline ? `Opening points at launch: ${fmt(+res.baseline.points || 0)}.` : ""} ${S.canEdit ? "Select a month to score it." : ""}</p>
+  <div class="tablewrap"><table><thead><tr><th>Month</th><th class="r">#</th><th>Level</th><th class="r">Duties</th><th class="r">Behavior</th><th class="r">Surgery</th><th class="r">Bonus</th><th class="r">Total</th><th class="r">Running</th><th>Notes</th></tr></thead>
+  <tbody>${rows.map(r => { const s = r.sc, notes = [];
     if (!r.completed) notes.push(`<span class="chip">In progress</span>`);
     if (r.change) notes.push(`<span class="chip ok">→ ${LEVELS[r.change.to].code} ${esc(r.change.reason)}</span>`);
-    if (r.heldBack) notes.push(`<span class="chip hold">Upgrade held</span>`);
-    else if (r.onHold) notes.push(`<span class="chip hold">Hold</span>`);
+    if (r.heldBack) notes.push(`<span class="chip hold">Upgrade held</span>`); else if (r.onHold) notes.push(`<span class="chip hold">Hold</span>`);
     if (s && s.crit) notes.push(`<span class="chip hold">Critical event</span>`);
     if (s && s.autoMajor) notes.push(`<span class="chip warn">Low attendance, 2nd month</span>`);
     if (s && s.attachedPending) notes.push(`<span class="chip warn">70 pts wait on sign-off</span>`);
     if (!s && r.completed) notes.push(`<span class="chip warn">Not scored</span>`);
-    return `<tr class="${S.canEdit ? "click" : ""}" ${S.canEdit ? `data-act="score" data-id="${S.rid}" data-ym="${r.ym}" tabindex="0"` : ""}>
-      <td>${ymLabel(r.ym)}</td><td class="r num">${r.i}</td><td>${pill(s ? LVL[s.lk] : r.level)}</td>
-      <td class="r num">${s ? fmt(s.duties) : "–"}</td><td class="r num">${s ? fmt(s.behavior) : "–"}</td><td class="r num">${s ? fmt(s.surgery) : "–"}</td><td class="r num">${s && s.bonus ? "+" + s.bonus : "–"}</td>
-      <td class="r num"><strong>${s ? fmt(s.total) : "–"}</strong></td><td class="r num">${fmt(r.cum)}</td><td><div class="chips">${notes.join("")}</div></td></tr>`; }).join("")}
-  </tbody></table></div>`;
+    return `<tr class="${S.canEdit ? "click" : ""}" ${S.canEdit ? `data-act="score" data-id="${S.rid}" data-ym="${r.ym}" tabindex="0"` : ""}><td>${ymLabel(r.ym)}</td><td class="r num">${res.start ? r.i : "–"}</td><td>${pill(s ? LVL[s.lk] : r.level)}</td>
+      <td class="r num">${s ? fmt(s.duties) : "–"}</td><td class="r num">${s ? fmt(s.behavior) : "–"}</td><td class="r num">${s ? fmt(s.surgery) : "–"}${s && s.as ? `<span class="small muted"> (${s.at}/${s.as})</span>` : ""}</td><td class="r num">${s && s.bonus ? "+" + s.bonus : "–"}</td>
+      <td class="r num"><strong>${s ? fmt(s.total) : "–"}</strong></td><td class="r num">${fmt(r.cum)}</td><td><div class="chips">${notes.join("")}</div></td></tr>`; }).join("")}</tbody></table></div>`;
 }
-
 function tabReqs(res) {
   const dis = S.canEdit ? "" : "disabled";
   const pr = res.baseline && res.baseline.priorReqs ? +res.baseline.level : -1;
-  return `<p class="muted small">A requirement is signed off when the training coordinator has recorded the resident doing it correctly and unaided on two separate occasions. Unsigned requirements block only an upgrade ahead of the time cut, except in the attached month.</p>
-  ${REQ_LEVELS.map(l => { const list = REQS[LEVELS[l].key]; const [s, t] = reqCount(res, [l]);
-    const prior = l < pr;
+  return `<p class="muted small">Signed off when the training coordinator has recorded the resident doing it correctly and unaided on two separate occasions. After the attached month, unsigned requirements block only an upgrade ahead of the time cut.</p>
+  ${REQ_LEVELS.map(l => { const [s, t] = reqCount(res, [l]), prior = l < pr;
     return `<div class="card stack"><div class="row"><h2>${pillName(l)}</h2><span class="chip ${s === t ? "ok" : ""}" style="margin-left:auto">${s} of ${t} signed off</span></div>
-    ${prior ? `<p class="small muted">Counted as signed off: they held a higher level when tracking began.</p>` : ""}
-    <div>${list.map(r => { const v = (res.reqs || {})[r.id] || {}; const ok = reqSigned(res, r.id);
+    ${prior ? `<p class="small muted">Counted as signed off: they held a higher level at launch.</p>` : ""}
+    <div>${REQS[LEVELS[l].key].map(r => { const v = (res.reqs || {})[r.id] || {}, ok = reqSigned(res, r.id);
       return `<div class="reqrow"><span class="tick ${ok ? "ok" : "todo"}">${ok ? "✓" : ""}</span><span>${esc(r.text)}</span>
-      ${prior ? "" : `<div class="reqdates"><label>Occasion 1<input type="date" id="rq-${r.id}-d1" data-act-change="req" data-req="${r.id}" data-slot="d1" value="${esc(v.d1 || "")}" ${dis}></label><label>Occasion 2<input type="date" id="rq-${r.id}-d2" data-act-change="req" data-req="${r.id}" data-slot="d2" value="${esc(v.d2 || "")}" ${dis}></label></div>`}</div>`; }).join("")}</div></div>`; }).join("")}`;
+      ${prior ? "" : `<div class="reqdates"><label>Occasion 1<input type="date" id="rq-${r.id}-d1" data-req="${r.id}" data-slot="d1" value="${esc(v.d1 || "")}" ${dis}></label><label>Occasion 2<input type="date" id="rq-${r.id}-d2" data-req="${r.id}" data-slot="d2" value="${esc(v.d2 || "")}" ${dis}></label></div>`}</div>`; }).join("")}</div></div>`; }).join("")}`;
 }
-
 function tabExams(res) {
   const card = n => {
-    const list = attempts(res, n).slice().sort((a, b) => a.month < b.month ? -1 : 1);
-    const p = examPassed(res, n);
+    const list = attempts(res, n).slice().sort((a, b) => a.month < b.month ? -1 : 1), p = examPassed(res, n);
     const what = n === 1 ? "The neurological examination. Gates midsenior." : "Neurosurgery principles, especially trauma and emergencies. Gates senior.";
-    return `<div class="card stack"><div class="row"><h2>Exam ${n}</h2>${p ? `<span class="chip ok" style="margin-left:auto">Passed</span>` : `<span class="chip" style="margin-left:auto">Not passed</span>`}</div>
+    return `<div class="card stack"><div class="row"><h2>Exam ${n}</h2><span class="chip ${p ? "ok" : ""}" style="margin-left:auto">${p ? "Passed" : "Not passed"}</span></div>
       <p class="muted small">${what} Marked out of 100, pass mark ${RULE.passMark}. Can be taken after month ${n === 1 ? RULE.exam1After : RULE.exam2After}; a failed exam can be retaken after ${RULE.retakeAfter} months.</p>
-      ${res.baseline && res.baseline["exam" + n] ? `<p>Passed before tracking began.</p>` : ""}
-      ${list.length ? `<div class="tablewrap"><table><thead><tr><th>Month</th><th class="r">Score</th><th>Result</th>${S.canEdit ? "<th></th>" : ""}</tr></thead><tbody>${list.map(a => `<tr><td>${ymLabel(a.month)}</td><td class="r num">${a.score != null ? a.score : "–"}</td><td>${passedAttempt(a) ? `<span class="chip ok">Pass</span>` : `<span class="chip hold">Fail</span>`}</td>${S.canEdit ? `<td class="r"><button class="btn ghost sm" data-act="exam-del" data-n="${n}" data-ym="${a.month}" data-score="${a.score}">Remove</button></td>` : ""}</tr>`).join("")}</tbody></table></div>` : `<p class="muted">No attempts recorded.</p>`}
-      ${!p ? `<p class="small">Can sit from <strong>${ymLabel(examEligibleFrom(res, n))}</strong>.</p>` : ""}
+      ${res.baseline && res.baseline["exam" + n] ? `<p>Counted as passed at launch.</p>` : ""}
+      ${list.length ? `<div class="tablewrap"><table><thead><tr><th>Month</th><th class="r">Score</th><th>Result</th>${S.canEdit ? "<th></th>" : ""}</tr></thead><tbody>${list.map(a => `<tr><td>${ymLabel(a.month)}</td><td class="r num">${a.score != null ? a.score : "–"}</td><td>${passedAttempt(a) ? `<span class="chip ok">Pass</span>` : `<span class="chip hold">Fail</span>`}</td>${S.canEdit ? `<td class="r"><button class="btn ghost sm" data-act="exam-del" data-n="${n}" data-ym="${a.month}" data-score="${a.score}">Remove</button></td>` : ""}</tr>`).join("")}</tbody></table></div>` : (res.baseline && res.baseline["exam" + n] ? "" : `<p class="muted">No attempts recorded.</p>`)}
+      ${!p && res.start ? `<p class="small">Can sit from <strong>${ymLabel(examEligibleFrom(res, n))}</strong>.</p>` : ""}
       ${S.canEdit ? `<div><button class="btn" data-act="exam-add" data-n="${n}">Record an attempt</button></div>` : ""}</div>`;
   };
   return `<div class="grid2">${card(1)}${card(2)}</div>`;
 }
-
-function tabSurgery(res, E) {
-  const can = S.canEdit;
-  return `<p class="muted small">Each procedure group is climbed separately. Moving up one step needs ${RULE.stepCases} logged cases at the current step (${RULE.stepCasesBoost} with the boost) and sign-off from two different consultants. Points never buy autonomy; only consultant sign-off does.</p>
-  <div class="grid3">${Object.keys(GROUPS).map(g => { const G = GROUPS[g], s = surgState(res, g, E);
-    return `<div class="card stack">
-      <div class="row"><h2>Group ${g}</h2><span class="chip ${s.step >= 4 ? "ok" : ""}" style="margin-left:auto">Step ${s.step} of 5</span></div>
-      <p class="small muted">${esc(G.examples)}</p>
-      <div class="steps" aria-label="Step ${s.step} of 5">${STEPS.map((_, k) => `<span class="step ${k < s.step ? "on" : k >= 3 && E.level < G.opens ? "lock" : ""}"></span>`).join("")}</div>
-      <div><strong>${esc(STEPS[s.step - 1])}</strong>${s.step < 5 ? `<div class="small muted">Next: ${esc(STEPS[s.step])}</div>` : ""}</div>
-      ${s.step < 5 ? `<ul class="checks">
-        <li><span class="tick ${s.cases >= s.need ? "ok" : "todo"}">${s.cases >= s.need ? "✓" : ""}</span><span>${s.cases} of ${s.need} cases logged at this step</span></li>
-        <li><span class="tick ${s.consultants >= 2 ? "ok" : "todo"}">${s.consultants >= 2 ? "✓" : ""}</span><span>${s.consultants} of 2 consultants signed off${(s.signoffs || []).length ? ": " + s.signoffs.map(x => esc(x.by)).join(", ") : ""}</span></li>
-        ${s.step >= 3 ? `<li><span class="tick ${s.locked ? "block" : "ok"}">${s.locked ? "!" : "✓"}</span><span>Step 4 opens at ${G.opensName.toLowerCase()} level</span></li>` : ""}
-      </ul>` : ""}
-      ${s.overdue ? `<div class="note warn">Step 4 was expected by month ${G.expected}. Set up a remediation plan with assigned cases and a named consultant.</div>` : `<p class="small muted">Step 4 expected by month ${G.expected} (${ymLabel(ymAdd(res.start, G.expected - 1))}).</p>`}
-      ${can ? `<div class="row">
-        ${s.step < 5 ? `<button class="btn sm" data-act="case" data-g="${g}" data-d="1">+ Log case</button><button class="btn sm" data-act="case" data-g="${g}" data-d="-1" ${s.cases ? "" : "disabled"}>−</button><button class="btn sm" data-act="signoff" data-g="${g}">Add sign-off</button>` : ""}
-        <button class="btn ghost sm" data-act="surg-edit" data-g="${g}">Correct</button>
-      </div>
-      ${s.step < 5 ? `<div><button class="btn primary sm" data-act="promote" data-g="${g}" ${s.canPromote ? "" : "disabled"}>Move up to step ${s.step + 1}</button></div>` : ""}` : ""}
-    </div>`; }).join("")}</div>`;
+function stepState(st, p, k) {
+  if (st.complete(k)) return `<span class="chip ok">Complete</span>`;
+  if (!st.prereqOK(k)) return `<span class="chip">Opens after 10 emergency closures</span>`;
+  const ix = PROCS[p].steps.indexOf(k), learn = st.learnIndex(p);
+  if (ix === learn) return st.allowed(p, k) ? `<span class="chip accent">Learning${k === st.boostStep(p) ? " (boost, specialist scrubbed)" : ""}</span>` : `<span class="chip warn">Above their ceiling</span>`;
+  if (!st.allowed(p, k)) return `<span class="chip">Above their ceiling</span>`;
+  return `<span class="chip">Waits on the step before</span>`;
 }
-
+function tabSurgery(res, E) {
+  const st = surg(res), can = S.canEdit, trans = inTransition();
+  const ladderCard = p => {
+    const P = PROCS[p], done = st.ladderDone(p), overdue = st.overdue.includes(p);
+    return `<div class="card stack"><div class="row"><h2>${esc(P.name)}</h2><span class="chip ${done ? "ok" : ""}" style="margin-left:auto">${done ? "Ladder complete" : `${st.learnIndex(p)} of ${P.steps.length} steps`}</span></div>
+      <div class="tablewrap"><table class="ltable"><thead><tr><th class="r">#</th><th>Step</th><th class="r">Satisfactory</th><th class="r">Specialists</th><th>Status</th>${can && trans ? "<th></th>" : ""}</tr></thead><tbody>
+      ${P.steps.map((k, n) => { const s = st.stat(k), base = (res.stepBase || {})[k];
+        return `<tr><td class="r num">${n + 1}</td><td class="stepname">${esc(STEP[k][0])}${SHARED_NOTE[k] ? `<div class="small muted">${esc(SHARED_NOTE[k])}</div>` : ""}</td>
+        <td class="r num">${base ? "–" : `${s.sat} / ${st.need(k)}`}</td><td class="r num">${base ? "–" : `${Math.min(s.specs.size, 2)} / 2`}</td>
+        <td class="stepstate">${stepState(st, p, k)}${base ? `<div class="small muted">Transition sign-off: ${esc((base.by || []).join(" and "))}</div>` : ""}${s.help || s.taken ? `<div class="small muted">${s.help ? s.help + " needed help" : ""}${s.help && s.taken ? ", " : ""}${s.taken ? s.taken + " taken over" : ""}</div>` : ""}</td>
+        ${can && trans ? `<td class="r">${base ? `<button class="btn ghost sm" data-act="tsign-del" data-k="${k}">Undo</button>` : !st.complete(k) && CEIL[st.g] && CEIL[st.g].has(k) ? `<button class="btn ghost sm" data-act="tsign" data-k="${k}">Transition sign-off</button>` : ""}</td>` : ""}</tr>`; }).join("")}
+      </tbody></table></div>
+      ${done ? "" : overdue ? `<div class="note warn">Expected by month ${P.expected}. Needs a remediation plan with assigned cases and a named specialist.</div>` : res.start ? `<p class="small muted">Expected complete by month ${P.expected} (${ymLabel(ymAdd(res.start, P.expected - 1))}).</p>` : ""}
+    </div>`;
+  };
+  return `<p class="muted small">A step can be performed only once the step before it in that procedure has reached its count. Only satisfactory performances count, and the ones completing a count must come from at least two different specialists. Ceiling for this level: ${GROUP_NAME[st.g].toLowerCase()}.${E.boost ? " Boost active: lower counts, and one step above the ceiling with the specialist scrubbed." : ""}</p>
+  <div class="card stack"><div class="row"><h2>Lumbar puncture</h2><span class="chip ${st.lpBackup ? "ok" : ""}" style="margin-left:auto">${st.lpBackup ? "Can act as backup" : "Learner"}</span></div>
+    <p><span class="num" style="font-size:20px;font-weight:600">${st.lp}</span> successful punctures. Becomes a backup at ${st.lpBackupAt}.</p>
+    <div class="progress"><span style="width:${Math.min(100, st.lp / st.lpBackupAt * 100)}%"></span></div>
+    ${can ? `<div><button class="btn ghost sm" data-act="lp-base">Set punctures done before launch (${+res.lpBase || 0})</button></div>` : ""}</div>
+  <div class="stack">${LADDERS.map(ladderCard).join("")}</div>`;
+}
 function tabProfile(res, E) {
   const b = res.baseline;
-  return `<div class="grid2"><div class="card stack">
-    <h2>Profile</h2>
+  return `<div class="grid2"><div class="card stack"><h2>Profile</h2>
     <div class="fields">
       <div><div class="label">Name</div><div>${esc(res.name)}</div></div>
-      <div><div class="label">Program start</div><div>${ymLabel(res.start)}</div></div>
+      <div><div class="label">Program start</div><div>${res.start ? ymLabel(res.start) : esc(res.startNote || "Not recorded")}</div></div>
       <div><div class="label">Tracking began</div><div>${b ? ymLabel(b.month) + " as " + esc(LEVELS[+b.level].name) : "Day one"}</div></div>
-      <div><div class="label">Points carried in</div><div class="num">${b ? fmt(+b.points || 0) : "0"}</div></div>
+      <div><div class="label">Opening points</div><div class="num">${b ? fmt(+b.points || 0) : "0"}</div></div>
     </div>
     ${res.notes ? `<div><div class="label">Notes</div><p style="white-space:pre-wrap">${esc(res.notes)}</p></div>` : ""}
-    ${S.canEdit ? `<div class="row"><button class="btn" data-act="edit">Edit profile</button><button class="btn danger" data-act="delete">Delete resident</button></div>` : ""}
-  </div>
-  <div class="card stack"><h2>Upgrade history</h2>
-    ${E.history.length ? `<ul class="checks">${E.history.map(h => `<li><span class="tick ok">✓</span><span>${pill(h.to)} ${esc(LEVELS[h.to].name)} from ${ymLabel(ymAdd(h.ym, 1))}<br><span class="small muted">End of month ${h.i}: ${esc(h.reason)}</span></span></li>`).join("")}</ul>` : `<p class="muted">No upgrades since tracking began.</p>`}
-  </div></div>`;
+    ${S.canEdit ? `<div class="row"><button class="btn" data-act="edit">Edit profile</button><button class="btn danger" data-act="delete">Delete resident</button></div>` : ""}</div>
+  <div class="card stack"><h2>Upgrade history</h2>${E.history.length ? `<ul class="checks">${E.history.map(h => `<li><span class="tick ok">✓</span><span>${pill(h.to)} ${esc(LEVELS[h.to].name)} from ${ymLabel(ymAdd(h.ym, 1))}<br><span class="small muted">${esc(h.reason)}</span></span></li>`).join("")}</ul>` : `<p class="muted">No upgrades since tracking began.</p>`}</div></div>`;
 }
 
 function scoringView() {
-  const ym = S.scoreYM, ids = sortedIds();
-  const nowYM = ymNow();
-  const rows = ids.map(id => { const r = S.residents[id], E = run(r); return { id, r, row: E.rows.find(x => x.ym === ym) }; });
+  const ym = S.scoreYM, ids = sortedIds(), nowYM = ymNow();
+  const rows = ids.map(id => ({ id, r: S.residents[id], row: run(S.residents[id]).rows.find(x => x.ym === ym) }));
   const tracked = rows.filter(x => x.row), done = tracked.filter(x => x.row.sc);
-  return `<div class="head"><div><h1>Monthly scoring</h1><p class="muted">Score each resident from the coordinator's recorded misses, behavior events and the countersigned logbook.</p></div></div>
-  <div class="row">
-    <button class="btn sm" data-act="ym" data-d="-1" aria-label="Previous month">←</button>
-    <h2 style="min-width:120px;text-align:center">${ymLabel(ym)}</h2>
-    <button class="btn sm" data-act="ym" data-d="1" aria-label="Next month" ${ym >= nowYM ? "disabled" : ""}>→</button>
-    <span class="chip ${done.length === tracked.length && tracked.length ? "ok" : "warn"}">${done.length} of ${tracked.length} scored</span>
-    ${ym === nowYM ? `<span class="chip">Month in progress</span>` : ""}
-  </div>
-  ${!ids.length ? `<div class="card empty"><p class="muted">Add residents first, then score them here each month.</p>${S.canEdit ? `<div><button class="btn primary" data-act="add">Add resident</button></div>` : ""}</div>` :
-  `<div class="tablewrap"><table><thead><tr><th>Resident</th><th>Level that month</th><th class="r">Duties</th><th class="r">Behavior</th><th class="r">Surgery</th><th class="r">Total</th><th>Status</th><th></th></tr></thead>
+  return `<div class="head"><div><h1>Monthly scoring</h1><p class="muted">Duties from the coordinator's recorded misses, behavior from same-day event records, surgery from the case log.</p></div></div>
+  <div class="row"><button class="btn sm" data-act="ym" data-k="scoreYM" data-d="-1" aria-label="Previous month">←</button><h2 style="min-width:120px;text-align:center">${ymLabel(ym)}</h2>
+    <button class="btn sm" data-act="ym" data-k="scoreYM" data-d="1" aria-label="Next month" ${ym >= nowYM ? "disabled" : ""}>→</button>
+    <span class="chip ${done.length === tracked.length && tracked.length ? "ok" : "warn"}">${done.length} of ${tracked.length} scored</span>${ym === nowYM ? `<span class="chip">Month in progress</span>` : ""}</div>
+  ${!ids.length ? `<div class="card empty"><p class="muted">Add residents first.</p></div>` : `<div class="tablewrap"><table><thead><tr><th>Resident</th><th>Level that month</th><th class="r">Duties</th><th class="r">Behavior</th><th class="r">Surgery</th><th class="r">Total</th><th>Status</th><th></th></tr></thead>
   <tbody>${rows.map(({ id, r, row }) => {
     if (!row) return `<tr><td class="rname">${esc(r.name)}</td><td colspan="6" class="muted">Not tracked this month</td><td></td></tr>`;
     const s = row.sc;
@@ -877,280 +1020,338 @@ function scoringView() {
       <td class="r">${S.canEdit ? `<button class="btn sm ${s ? "" : "primary"}" data-act="score" data-id="${id}" data-ym="${ym}">${s ? "Edit" : "Score"}</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>`}`;
 }
 
+function teamText(c) {
+  return (c.team || []).map(m => `<div><strong>${esc(nm(m.rid))}</strong> <span class="small muted">${esc(m.role)}${m.steps && m.steps.length ? ": " + m.steps.map(k => STEP[k][0]).join(", ") : ""}${m.attended === false ? " · absent" : ""}</span></div>`).join("");
+}
+function caseRecorded(c) {
+  if (c.proc === "lp") return !!(c.lp && c.lp.result);
+  const due = (c.team || []).filter(m => m.steps && m.steps.length && m.attended !== false);
+  return due.length ? due.every(m => m.steps.every(k => ((c.perf || {})[m.rid] || {})[k])) : (c.team || []).length > 0 && !!c.closed;
+}
+function theatreView() {
+  const ym = S.theatreYM, list = allCases().filter(c => c.ym === ym).slice().reverse();
+  return `<div class="head"><div><h1>Theatre</h1><p class="muted">Assign residents to cases and steps, then record how each step went. Every assignment shows its reason.</p></div>
+    ${S.canEdit ? `<div class="actions"><button class="btn" data-act="new-em">Emergency case</button><button class="btn primary" data-act="new-list">Elective list</button></div>` : ""}</div>
+  <div class="row"><button class="btn sm" data-act="ym" data-k="theatreYM" data-d="-1" aria-label="Previous month">←</button><h2 style="min-width:120px;text-align:center">${ymLabel(ym)}</h2>
+    <button class="btn sm" data-act="ym" data-k="theatreYM" data-d="1" aria-label="Next month" ${ym >= ymNow() ? "disabled" : ""}>→</button><span class="chip">${list.length} case${list.length === 1 ? "" : "s"}</span></div>
+  ${list.length ? `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Case</th><th>Team</th><th>Specialist</th><th>Record</th></tr></thead><tbody>
+    ${list.map(c => `<tr class="click" data-act="case-open" data-id="${c.id}" tabindex="0"><td class="num">${dateLabel(c.date)}</td><td><div class="rname">${esc(c.proc === "adv" ? (c.title || "Advanced case") : PROCS[c.proc].name)}</div><span class="small muted">${c.kind === "elective" ? esc(c.list || "Elective") : "Emergency"}</span></td>
+      <td>${teamText(c)}${(c.specialistSteps || []).length ? `<div class="small muted">Specialist: ${c.specialistSteps.map(k => STEP[k][0]).join(", ")}</div>` : ""}</td><td>${esc(c.specialist || "–")}</td>
+      <td>${caseRecorded(c) ? `<span class="chip ok">Recorded</span>` : `<span class="chip warn">To record</span>`}</td></tr>`).join("")}</tbody></table></div>`
+  : `<div class="card empty"><p class="muted">No cases logged for ${ymLabel(ym)}. ${S.canEdit ? "Start with an emergency case or publish an elective list, and the tracker suggests who does which step." : ""}</p></div>`}
+  <p class="small muted">Monthly surgery points count the cases each resident was assigned to here and attended. If a month's cases are not logged, edit the counts in that month's score.</p>`;
+}
+
 function rulesView() {
   const dutyTable = k => `<table><tbody>${DUTIES[k].map(([t, p]) => `<tr><td>${esc(t)}</td><td class="r num">${p}</td></tr>`).join("")}</tbody></table>`;
-  return `<div class="head"><div><h1>Program rules</h1><p class="muted">The numbers the tracker uses, taken from the Neurosurgery Residency Progression System. They are proposed starting values and may be calibrated before launch.</p></div></div>
+  return `<div class="head"><div><h1>Program rules</h1><p class="muted">The numbers the tracker uses, from the Neurosurgery Residency Progression System. They are proposed starting values.</p></div></div>
   <div class="rules grid2">
     <div class="card stack"><h2>Levels and timeline</h2><div class="tablewrap"><table><thead><tr><th>Level</th><th>How it is reached</th></tr></thead><tbody>
-      <tr><td>${pillName(0)}</td><td>Day one</td></tr>
-      <tr><td>${pillName(1)}</td><td>End of month 1, once the attached requirements are signed off</td></tr>
-      <tr><td>${pillName(2)}</td><td>500 points, or automatic at 6 months</td></tr>
-      <tr><td>${pillName(3)}</td><td>1,500 points with Exam 1 passed (early step only)</td></tr>
-      <tr><td>${pillName(4)}</td><td>18 months with Exam 1 passed</td></tr>
-      <tr><td>${pillName(5)}</td><td>2,500 points with Exam 2 passed (early step only)</td></tr>
+      <tr><td>${pillName(0)}</td><td>Day one</td></tr><tr><td>${pillName(1)}</td><td>End of month 1, once the attached requirements are signed off</td></tr>
+      <tr><td>${pillName(2)}</td><td>500 points, or automatic at 6 months</td></tr><tr><td>${pillName(3)}</td><td>1,500 points with Exam 1 passed (early step only)</td></tr>
+      <tr><td>${pillName(4)}</td><td>18 months with Exam 1 passed</td></tr><tr><td>${pillName(5)}</td><td>2,500 points with Exam 2 passed (early step only)</td></tr>
       <tr><td>${pillName(6)}</td><td>30 months with Exam 2 passed</td></tr></tbody></table></div>
       <ul class="small"><li>Totals are checked at the end of each month; an upgrade takes effect on the 1st of the next month.</li><li>An upgrade ahead of the time cut also needs the level's requirements signed off.</li><li>An active hold blocks upgrades by points and by time. Points keep accruing.</li></ul></div>
     <div class="card stack"><h2>Monthly score</h2>
-      <ul class="small"><li>Duties 50, behavior 30, surgery 20. A month never scores above 100.</li><li>Each duty line: no misses = full points, 1 or 2 = half, 3 or more = zero.</li><li>Surgery is proportional to assigned cases attended. 4 of 5 scores 16.</li><li>An attached month earns its 70 duty and surgery points only when the attached requirements are signed off.</li><li>Bonuses: covering a duty at short notice +3, extra teaching +2, written commendation +2. Capped at 5 a month.</li></ul>
-      <h3>Behavior</h3><div class="tablewrap"><table><thead><tr><th>Tier</th><th class="r">Points</th><th>Effect</th></tr></thead><tbody>
-      <tr><td>Minor</td><td class="r num">−3</td><td>Three in one month count as one major</td></tr>
-      <tr><td>Major</td><td class="r num">−15</td><td>1-month hold</td></tr>
-      <tr><td>Critical</td><td class="r num">All 30</td><td>Committee: hold of at least 3 months, or demotion by one level</td></tr></tbody></table></div>
-      <ul class="small"><li>Two majors within 6 months go to committee review.</li><li>Missing more than half of assigned cases two months running is a major event, and no reward-pool places the next month.</li></ul></div>
-    <div class="card stack"><h2>Surgical minimums</h2><div class="tablewrap"><table><thead><tr><th>Level</th><th class="r">Cases a month</th></tr></thead><tbody>${Object.entries(SURG_MIN).map(([k, n]) => `<tr><td>${pillName(LVL[k])}</td><td class="r num">${n}</td></tr>`).join("")}</tbody></table></div>
-      <h3>Senior tiers</h3><ul class="small"><li>Senior I: entry, 30 months and Exam 2.</li><li>Senior II: 6-month average of 85 or more, no hold in the last 6 months.</li><li>Senior III: 6-month average of 92 or more, no hold in the last 12 months, step 5 on Group B.</li></ul></div>
-    <div class="card stack"><h2>Duty checklists</h2>${LEVELS.slice(1).map(l => `<details><summary>${pillName(LVL[l.key])}</summary><div class="tablewrap" style="margin-top:8px">${dutyTable(l.key)}</div></details>`).join("")}</div>
+      <ul class="small"><li>Duties 50, behavior 30, surgery 20. A month never scores above 100.</li><li>Each duty line: no misses = full points, 1 or 2 = half, 3 or more = zero.</li><li>Surgery is proportional to assigned cases attended.</li><li>Bonuses: covering a duty +3, extra teaching +2, commendation +2. Capped at 5 a month.</li><li>Minor −3 (three in a month count as a major), major −15 and a 1-month hold, critical all 30 and committee review.</li></ul>
+      <h3>Transition</h3><ul class="small"><li>Everyone starts at their current level; no demotion.</li><li>Current midseniors count as having passed Exam 1, current seniors Exam 2.</li><li>Opening points: 80 for each completed month before launch.</li><li>First 2 months: any step within the ceiling completes with two satisfactory performances seen by two different specialists.</li><li>Every senior starts at Senior I; tiers are first reviewed after 6 months of scores.</li></ul></div>
+    <div class="card stack"><h2>Surgical ladders</h2><ul class="small"><li>A step opens once the step before it in that procedure reaches its count. Only satisfactory performances count, from at least two specialists.</li><li>Wound closure, burr holes, skin incision and hemostasis share one counter across emergency cases. Abdominal exposure is shared by ventricular cannulation and TP shunt.</li><li>Junior ceiling: shared emergency steps, lumbar puncture, elective closure. Midsenior: all basic emergency steps except craniotomy pathology attack and final hemostasis; spine up to hemostasis; TP shunt up to abdominal exposure. Senior: all basic steps and closure on advanced cases.</li><li>Boost (average 90+ over 3 months, no hold): lower counts and one step above the ceiling with the specialist scrubbed.</li><li>Expected: shared emergency steps by 18 months; craniotomy, ventricular and CSDH by 36; spine and TP shunt by 54.</li></ul>
+      <h3>Case assignment</h3><ul class="small"><li>Emergency: residents on the case line up lowest on the ladder first; each takes steps up to their learning step; steps above everyone's ceiling go to the specialist. Two on call at the same level: higher priority takes the place.</li><li>Elective lists: residents below their monthly minimum first, furthest behind first; then the reward pool by priority score. Residents on a hold get no reward-pool places.</li><li>Priority = merit (3-month average × 0.4) + learning match (30 / 10 / 0) + fair share (30 × (1 − cases this month ÷ 1.5 × minimum)).</li></ul></div>
+    <div class="card stack"><h2>Surgical minimums</h2><div class="tablewrap"><table><tbody>${Object.entries(SURG_MIN).filter(([k]) => k !== "att").map(([k, n]) => `<tr><td>${pillName(LVL[k])}</td><td class="r num">${n} a month</td></tr>`).join("")}</tbody></table></div>
+      <h3>Senior tiers</h3><ul class="small"><li>Senior II: 6-month average of 85+, no hold in 6 months.</li><li>Senior III: 6-month average of 92+, no hold in 12 months, every basic emergency ladder completed.</li></ul>
+      <h3>Duty checklists</h3>${LEVELS.slice(1).map(l => `<details><summary>${pillName(LVL[l.key])}</summary><div class="tablewrap" style="margin-top:8px">${dutyTable(l.key)}</div></details>`).join("")}</div>
   </div>`;
+}
+function settingsView() {
+  const s = S.settings, dis = S.canEdit ? "" : "disabled";
+  return `<div class="head"><div><h1>Settings</h1></div></div>
+  <div class="grid2"><div class="card stack"><h2>Specialists</h2><p class="small muted">The names offered when recording who supervised a step. Use the same spelling each time: a count needs performances from two different specialists.</p>
+    <textarea id="set-specs" rows="9" ${dis} placeholder="One name per line">${esc((s.specialists || []).join("\n"))}</textarea>
+    ${S.canEdit ? `<div><button class="btn primary" data-act="set-specs">Save specialists</button></div>` : ""}</div>
+  <div class="card stack"><h2>Launch month</h2><p class="small muted">The month the system started. Opening points and the 2-month transition sign-off window count from here.</p>
+    <p><strong>${ymLabel(s.launch)}</strong>. Transition window: ${ymLabel(s.launch)} to ${ymLabel(ymAdd(s.launch, RULE.transitionMonths - 1))}${inTransition() ? " (open now)" : ""}.</p></div></div>`;
 }
 
 /* ---------- modals ---------- */
 function monthSel(field, value) {
   const [y, m] = (validYM(value) ? value : ymNow()).split("-");
   const yNow = new Date().getFullYear(), years = [];
-  for (let k = yNow - 10; k <= yNow + 1; k++) years.push(k);
+  for (let k = yNow - 8; k <= yNow + 1; k++) years.push(k);
   return `<span class="msel"><select id="ms-${field}-m" data-mm="${field}" data-part="m" aria-label="Month">${MONTHS.map((n, k) => `<option value="${String(k + 1).padStart(2, "0")}" ${+m === k + 1 ? "selected" : ""}>${n}</option>`).join("")}</select><select id="ms-${field}-y" data-mm="${field}" data-part="y" aria-label="Year">${years.map(k => `<option ${+y === k ? "selected" : ""}>${k}</option>`).join("")}</select></span>`;
 }
-function openModal(m) { S.modal = m; renderModal(); const f = modalRoot.querySelector("input, select, textarea, button"); if (f) f.focus(); }
+function openModal(m) { S.modal = m; renderModal(); const f = modalRoot.querySelector("input:not([type=hidden]), select, textarea"); if (f) f.focus(); }
 function closeModal() { S.modal = null; modalRoot.innerHTML = ""; }
 function renderModal() {
-  const m = S.modal;
-  if (!m) { modalRoot.innerHTML = ""; return; }
-  const html = { score: scoreModal, add: addModal, edit: addModal, import: importModal, exam: examModal, signoff: signoffModal, "surg-edit": surgEditModal, delete: deleteModal }[m.type]();
-  modalRoot.innerHTML = `<div class="scrim" data-act="scrim"><div class="modal ${m.type === "score" || m.type === "import" ? "" : "narrow"}" role="dialog" aria-modal="true">${html}</div></div>`;
+  const m = S.modal; if (!m) { modalRoot.innerHTML = ""; return; }
+  const scrollEl = modalRoot.querySelector(".scrim"), top = scrollEl ? scrollEl.scrollTop : 0;
+  const html = { score: scoreModal, add: addModal, edit: addModal, import: importModal, exam: examModal, delete: deleteModal, em: emModal, list: listModal, record: recordModal, tsign: tsignModal, lpbase: lpBaseModal }[m.type]();
+  const wide = ["score", "import", "em", "list", "record"].includes(m.type);
+  modalRoot.innerHTML = `<div class="scrim" data-act="scrim"><div class="modal ${wide ? "" : "narrow"}" role="dialog" aria-modal="true">${html}</div></div>`;
+  const s2 = modalRoot.querySelector(".scrim"); if (s2) s2.scrollTop = top;
 }
+const errLine = () => `<p class="small" style="color:var(--hold)" ${S.modal.err ? "" : "hidden"}>${esc(S.modal.err || "")}</p>`;
 
 function scoreModal() {
-  const m = S.modal, res = S.residents[m.rid], d = m.draft;
-  const L = LVL[d.level];
-  const temp = Object.assign({}, res, { months: Object.assign({}, res.months, { [m.ym]: d }) });
-  const E = run(temp), row = E.rows.find(r => r.ym === m.ym);
-  const engineLvl = run(res).rows.find(r => r.ym === m.ym);
-  const sysL = engineLvl ? engineLvl.level : L;
-  const levelNote = sysL !== L ? `<div class="note warn">This month is recorded at ${esc(LEVELS[L].name)}, but the tracker now places them at ${esc(LEVELS[sysL].name)} for ${ymLabel(m.ym)}. <button class="linkbtn" data-act="sc-relevel" data-v="${sysL}">Score as ${esc(LEVELS[sysL].name)}</button></div>` : "";
-  const hasCrit = (d.events || []).some(e => e.tier === "critical");
+  const m = S.modal, res = S.residents[m.rid], d = m.draft, L = LVL[d.level];
+  const sysRow = run(res).rows.find(r => r.ym === m.ym), sysL = sysRow ? sysRow.level : L;
+  const levelNote = sysL !== L ? `<div class="note warn">Recorded at ${esc(LEVELS[L].name)}, but the tracker now places them at ${esc(LEVELS[sysL].name)} for ${ymLabel(m.ym)}. <button class="linkbtn" data-act="sc-relevel" data-v="${sysL}">Score as ${esc(LEVELS[sysL].name)}</button></div>` : "";
+  const hasCrit = d.events.some(e => e.tier === "critical");
+  const logged = cxOf(m.rid).months[m.ym] || { assigned: 0, attended: 0 };
   const duties = d.level === "att"
-    ? `<div class="note">${groupSigned(res, 0, m.ym) ? "The attached requirements are signed off, so this month earns its 70 duty and surgery points." : "The attached month earns its 70 duty and surgery points once the attached requirements are signed off on the Requirements tab. Behavior is scored as usual."}</div>`
+    ? `<div class="note">${groupSigned(res, 0, m.ym) ? "The attached requirements are signed off, so this month earns its 70 duty and surgery points." : "The attached month earns its 70 duty and surgery points once the attached requirements are signed off. Behavior is scored as usual."}</div>`
     : `<div><div class="row" style="justify-content:space-between"><h3>Duties</h3><span class="small muted">Recorded misses this month</span></div>
-       ${DUTIES[d.level].map(([t, p], k) => { const v = +(d.misses[k] || 0); const earned = v === 0 ? p : v <= 2 ? p / 2 : 0;
+       ${DUTIES[d.level].map(([t, p], k) => { const v = +(d.misses[k] || 0), earned = v === 0 ? p : v <= 2 ? p / 2 : 0;
          return `<div class="duty"><span>${esc(t)} <span class="muted small">(${p})</span></span><div class="seg" role="group" aria-label="Misses">${[0, 1, 2, 3].map(n => `<button type="button" data-act="sc-miss" data-k="${k}" data-v="${n}" aria-pressed="${v === n}" class="${n >= 3 ? "bad" : n ? "mid" : ""}">${n === 3 ? "3+" : n}</button>`).join("")}</div><span class="pts">${fmt(earned)}</span></div>`; }).join("")}</div>
-       <div class="stack"><h3>Surgery</h3><div class="row"><label class="field"><span>Assigned cases</span><input type="number" min="0" id="sc-as" data-sc="assigned" value="${d.assigned}"></label><label class="field"><span>Attended</span><input type="number" min="0" id="sc-at" data-sc="attended" value="${d.attended}"></label><span class="small muted">Level minimum: ${SURG_MIN[d.level]} a month. From the countersigned logbook.</span></div></div>`;
-  return `<div class="mhead"><span class="label">${ymLabel(m.ym)} · month ${ymDiff(m.ym, res.start) + 1}</span><h2>${esc(res.name)}</h2><div>${pillName(L)}</div></div>
+       <div class="stack"><h3>Surgery</h3><p class="small">From the case log: assigned to <strong>${logged.assigned}</strong>, attended <strong>${logged.attended}</strong>. Level minimum ${SURG_MIN[d.level]}.</p>
+       <label class="row"><input type="checkbox" id="sc-ov" data-sc="surgOverride" data-rerender ${d.surgOverride ? "checked" : ""}> Use counts from the countersigned logbook instead</label>
+       ${d.surgOverride ? `<div class="row"><label class="field"><span>Assigned</span><input type="number" min="0" id="sc-as" data-sc="assigned" value="${esc(d.assigned)}"></label><label class="field"><span>Attended</span><input type="number" min="0" id="sc-at" data-sc="attended" value="${esc(d.attended)}"></label></div>` : ""}</div>`;
+  return `<div class="mhead"><span class="label">${ymLabel(m.ym)}${res.start ? " · month " + (ymDiff(m.ym, res.start) + 1) : ""}</span><h2>${esc(res.name)}</h2><div>${pillName(L)}</div></div>
   <div class="mbody">${levelNote}${duties}
-    <div class="stack"><div class="row"><h3>Behavior events</h3><div class="row" style="margin-left:auto">${Object.keys(TIERS).map(t => `<button class="btn sm" data-act="sc-ev-add" data-v="${t}">+ ${TIERS[t].label}</button>`).join("")}</div></div>
-      ${(d.events || []).length ? d.events.map((e, k) => `<div class="evrow"><select id="ev-${k}-tier" data-ev="${k}" data-f="tier" aria-label="Tier">${Object.keys(TIERS).map(t => `<option value="${t}" ${e.tier === t ? "selected" : ""}>${TIERS[t].label}</option>`).join("")}</select><input type="date" id="ev-${k}-date" data-ev="${k}" data-f="date" value="${esc(e.date)}" aria-label="Date"><input class="wide" type="text" id="ev-${k}-note" data-ev="${k}" data-f="note" value="${esc(e.note)}" placeholder="What happened" aria-label="What happened"><input type="text" id="ev-${k}-by" data-ev="${k}" data-f="by" value="${esc(e.by)}" placeholder="Reported by" aria-label="Reported by"><button class="btn ghost sm" data-act="sc-ev-del" data-k="${k}">Remove</button></div>`).join("") : `<p class="small muted">No events. Behavior starts at 30. An error the resident reports promptly is not a deduction.</p>`}
-    </div>
+    <div class="stack"><div class="row"><h3>Behavior events</h3><div class="row" style="margin-left:auto">${Object.keys(TIERS).map(t => `<button class="btn sm" data-act="sc-ev-add" data-v="${t}">+ ${TIERS[t]}</button>`).join("")}</div></div>
+      ${d.events.length ? d.events.map((e, k) => `<div class="evrow"><select id="ev-${k}-tier" data-ev="${k}" data-f="tier" aria-label="Tier">${Object.keys(TIERS).map(t => `<option value="${t}" ${e.tier === t ? "selected" : ""}>${TIERS[t]}</option>`).join("")}</select><input type="date" id="ev-${k}-date" data-ev="${k}" data-f="date" value="${esc(e.date)}" aria-label="Date"><input class="wide" type="text" id="ev-${k}-note" data-ev="${k}" data-f="note" value="${esc(e.note)}" placeholder="What happened" aria-label="What happened"><input type="text" id="ev-${k}-by" data-ev="${k}" data-f="by" value="${esc(e.by)}" placeholder="Reported by" aria-label="Reported by"><button class="btn ghost sm" data-act="sc-ev-del" data-k="${k}">Remove</button></div>`).join("") : `<p class="small muted">No events. Behavior starts at 30. An error the resident reports promptly is not a deduction; concealing one is critical.</p>`}</div>
     ${hasCrit ? `<div class="stack note hold"><strong>Committee decision for the critical event</strong><div class="row"><label class="field"><span>Hold (months, at least 3)</span><input type="number" min="3" id="sc-hold" data-sc="holdMonths" value="${(d.committee || {}).holdMonths || 3}"></label><label class="row"><input type="checkbox" id="sc-demote" data-sc="demote" ${(d.committee || {}).demote ? "checked" : ""}> Demote one level instead</label></div></div>` : ""}
     <div class="stack"><div class="row"><h3>Good behavior</h3><div class="row" style="margin-left:auto">${Object.keys(BONUS).map(b => `<button class="btn sm" data-act="sc-bn-add" data-v="${b}">+ ${BONUS[b].short} (${BONUS[b].pts})</button>`).join("")}</div></div>
-      ${(d.bonuses || []).length ? d.bonuses.map((b, k) => `<div class="evrow"><span class="small"><strong>${esc(BONUS[b.kind].short)}</strong> +${BONUS[b.kind].pts}</span><input type="date" id="bn-${k}-date" data-bn="${k}" data-f="date" value="${esc(b.date)}" aria-label="Date"><input class="wide" type="text" id="bn-${k}-note" data-bn="${k}" data-f="note" value="${esc(b.note)}" placeholder="Details" aria-label="Details"><span></span><button class="btn ghost sm" data-act="sc-bn-del" data-k="${k}">Remove</button></div>`).join("") : `<p class="small muted">Bonuses offset deductions, capped at ${RULE.bonusCap} a month.</p>`}
-    </div>
+      ${d.bonuses.length ? d.bonuses.map((b, k) => `<div class="evrow"><span class="small"><strong>${esc(BONUS[b.kind].short)}</strong> +${BONUS[b.kind].pts}</span><input type="date" id="bn-${k}-date" data-bn="${k}" data-f="date" value="${esc(b.date)}" aria-label="Date"><input class="wide" type="text" id="bn-${k}-note" data-bn="${k}" data-f="note" value="${esc(b.note)}" placeholder="Details" aria-label="Details"><span></span><button class="btn ghost sm" data-act="sc-bn-del" data-k="${k}">Remove</button></div>`).join("") : `<p class="small muted">Bonuses offset deductions, capped at ${RULE.bonusCap} a month.</p>`}</div>
     <label class="field"><span>Note for this month</span><textarea id="sc-note" data-sc="note" rows="2">${esc(d.note || "")}</textarea></label>
-    <div id="sc-summary">${scoreSummary(row)}</div>
-  </div>
+    <div id="sc-summary">${scoreSummary()}</div></div>
   <div class="mfoot">${m.exists ? `<button class="btn danger left" data-act="sc-clear">Clear month</button>` : ""}<button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="sc-save">Save month</button></div>`;
 }
-function scoreSummary(row) {
-  const s = row && row.sc;
+function draftRow() {
+  const m = S.modal, res = S.residents[m.rid];
+  const temp = Object.assign({}, res, { months: Object.assign({}, res.months, { [m.ym]: m.draft }) });
+  return run(temp, true).rows.find(r => r.ym === m.ym);
+}
+function scoreSummary() {
+  const row = draftRow(), s = row && row.sc;
   if (!s) return "";
   const eff = [];
-  if (s.crit) eff.push(s.demote ? "Critical event: demotion by one level at month end." : `Critical event: ${s.holdLen}-month hold, committee review.`);
+  if (s.crit) eff.push(s.demote ? "Critical event: demotion by one level at month end." : `Critical event: ${s.holdLen}-month hold and committee review.`);
   else if (s.effMajors) eff.push(`Major event${s.autoMajor ? " (low surgical attendance, second month running)" : s.minors >= 3 && !s.majors ? " (three minors)" : ""}: 1-month hold.`);
   if (row.change) eff.push(`At month end: moves to ${LEVELS[row.change.to].name} (${row.change.reason}).`);
   else if (row.heldBack) eff.push("An upgrade is due but the hold blocks it.");
   return `<div class="summary"><span>Duties <strong class="num">${fmt(s.duties)}</strong>/50</span><span>Behavior <strong class="num">${fmt(s.behavior)}</strong>/30</span><span>Surgery <strong class="num">${fmt(s.surgery)}</strong>/20</span>${s.bonus ? `<span>Bonus <strong class="num">+${s.bonus}</strong></span>` : ""}<span class="tot">${fmt(s.total)}</span></div>${eff.length ? `<div class="note ${s.crit || s.effMajors ? "hold" : ""}" style="margin-top:8px">${eff.map(esc).join("<br>")}</div>` : ""}`;
 }
 function openScore(rid, ym) {
-  const res = S.residents[rid], E = run(res), row = E.rows.find(r => r.ym === ym);
+  const res = S.residents[rid], row = run(res).rows.find(r => r.ym === ym);
   if (!row) return;
   const rec = (res.months || {})[ym];
   const lk = rec && rec.level ? rec.level : LEVELS[row.level].key;
-  const draft = rec ? clone(rec) : { level: lk, misses: [], events: [], bonuses: [], assigned: SURG_MIN[lk] || 0, attended: SURG_MIN[lk] || 0, note: "" };
-  draft.level = lk; draft.misses = draft.misses || []; draft.events = draft.events || []; draft.bonuses = draft.bonuses || [];
-  if (lk !== "att") draft.misses = DUTIES[lk].map((_, k) => +(draft.misses[k] || 0));
+  const draft = rec ? clone(rec) : { level: lk, misses: [], events: [], bonuses: [], note: "" };
+  draft.level = lk; draft.events = draft.events || []; draft.bonuses = draft.bonuses || [];
+  draft.misses = lk === "att" ? [] : DUTIES[lk].map((_, k) => +((draft.misses || [])[k] || 0));
+  if (draft.assigned == null) { const c = cxOf(rid).months[ym] || { assigned: 0, attended: 0 }; draft.assigned = c.assigned; draft.attended = c.attended; }
   openModal({ type: "score", rid, ym, draft, exists: !!rec });
 }
-function defaultDate(ym) { const t = todayISO(); return t.slice(0, 7) === ym ? t : ym + "-01"; }
+const defaultDate = ym => { const t = todayISO(); return t.slice(0, 7) === ym ? t : ym + "-01"; };
 
 function addModal() {
-  const m = S.modal, d = m.draft;
-  const existing = d.mode === "existing";
-  return `<div class="mhead"><h2>${m.type === "edit" ? "Edit profile" : "Add resident"}</h2>${m.type === "add" ? `<p class="small muted">Residents already in the program start from the level they hold now.</p>` : ""}</div>
-  <div class="mbody">
-    <label class="field"><span>Name</span><input type="text" id="ar-name" data-m="name" value="${esc(d.name)}" autocomplete="off"></label>
+  const m = S.modal, d = m.draft, existing = d.mode === "existing";
+  return `<div class="mhead"><h2>${m.type === "edit" ? "Edit profile" : "Add resident"}</h2></div>
+  <div class="mbody"><label class="field"><span>Name</span><input type="text" id="ar-name" data-m="name" value="${esc(d.name)}" autocomplete="off"></label>
     <div class="field"><span>Program start (day one)</span>${monthSel("start", d.start)}</div>
     <div class="field"><span>Where are they now?</span>
       <label class="row"><input type="radio" name="ar-mode" id="ar-mode-new" data-m="mode" value="new" data-rerender ${existing ? "" : "checked"}> Starting the program (attached, no points yet)</label>
-      <label class="row"><input type="radio" name="ar-mode" id="ar-mode-ex" data-m="mode" value="existing" data-rerender ${existing ? "checked" : ""}> Already in the program</label>
-    </div>
-    ${existing ? `<div class="stack note">
-      <div class="fields">
+      <label class="row"><input type="radio" name="ar-mode" id="ar-mode-ex" data-m="mode" value="existing" data-rerender ${existing ? "checked" : ""}> Already in the program</label></div>
+    ${existing ? `<div class="stack note"><div class="fields">
         <label class="field"><span>Level they hold now</span><select id="ar-level" data-m="level" data-rerender>${LEVELS.map((l, i) => `<option value="${i}" ${+d.level === i ? "selected" : ""}>${esc(l.name)}</option>`).join("")}</select></label>
         <div class="field"><span>Tracking starts</span>${monthSel("bmonth", d.bmonth)}</div>
-        <label class="field"><span>Points so far (if known)</span><input type="number" min="0" id="ar-pts" data-m="points" value="${esc(d.points)}"></label>
-      </div>
+        <label class="field"><span>Opening points</span><input type="number" min="0" id="ar-pts" data-m="points" value="${esc(d.points)}"></label></div>
+      <p class="small muted">The transition rule credits 80 points for each completed month before tracking starts: <button class="linkbtn" data-act="ar-pts80">use ${Math.max(0, ymDiff(d.bmonth, d.start)) * RULE.openingPoints}</button>.</p>
       <label class="row"><input type="checkbox" id="ar-e1" data-m="exam1" ${d.exam1 ? "checked" : ""}> Exam 1 already passed</label>
       <label class="row"><input type="checkbox" id="ar-e2" data-m="exam2" ${d.exam2 ? "checked" : ""}> Exam 2 already passed</label>
-      <label class="row"><input type="checkbox" id="ar-pr" data-m="priorReqs" ${d.priorReqs ? "checked" : ""}> Count the requirements of lower levels as signed off</label>
-      <p class="small muted">Months before tracking starts are not scored. Points only matter for the early steps, so leave them at 0 if you don't have them.</p>
-    </div>` : ""}
-    <label class="field"><span>Notes</span><textarea id="ar-notes" data-m="notes" rows="2">${esc(d.notes)}</textarea></label>
-    <p id="ar-err" class="small" style="color:var(--hold)" ${m.err ? "" : "hidden"}>${esc(m.err || "")}</p>
-  </div>
+      <label class="row"><input type="checkbox" id="ar-pr" data-m="priorReqs" ${d.priorReqs ? "checked" : ""}> Count the requirements of lower levels as signed off</label></div>` : ""}
+    <label class="field"><span>Notes</span><textarea id="ar-notes" data-m="notes" rows="2">${esc(d.notes)}</textarea></label>${errLine()}</div>
   <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="ar-save">${m.type === "edit" ? "Save" : "Add resident"}</button></div>`;
 }
 function openAdd(rid) {
+  const launch = validYM(S.settings.launch) && S.settings.launch <= ymNow() ? ymNow() : ymNow();
   if (rid) {
     const r = S.residents[rid], b = r.baseline;
-    openModal({ type: "edit", rid, draft: { name: r.name, start: r.start, mode: b ? "existing" : "new", level: b ? +b.level : 1, bmonth: b ? b.month : ymNow(), points: b ? +b.points || 0 : 0, exam1: !!(b && b.exam1), exam2: !!(b && b.exam2), priorReqs: b ? !!b.priorReqs : true, notes: r.notes || "" } });
-  } else openModal({ type: "add", draft: { name: "", start: ymNow(), mode: "new", level: 2, bmonth: ymNow(), points: 0, exam1: false, exam2: false, priorReqs: true, notes: "" } });
+    openModal({ type: "edit", rid, draft: { name: r.name, start: r.start || ymAdd(ymNow(), -60), mode: b ? "existing" : "new", level: b ? +b.level : 1, bmonth: b ? b.month : launch, points: b ? +b.points || 0 : 0, exam1: !!(b && b.exam1), exam2: !!(b && b.exam2), priorReqs: b ? !!b.priorReqs : true, notes: r.notes || "" } });
+  } else openModal({ type: "add", draft: { name: "", start: ymNow(), mode: "new", level: 2, bmonth: launch, points: 0, exam1: false, exam2: false, priorReqs: true, notes: "" } });
 }
 async function saveAdd() {
-  const m = S.modal, d = m.draft;
-  const name = (d.name || "").trim();
+  const m = S.modal, d = m.draft, name = (d.name || "").trim();
   if (!name) { m.err = "Enter the resident's name."; renderModal(); return; }
-  if (!validYM(d.start)) { m.err = "Choose the program start month."; renderModal(); return; }
   let baseline = null;
   if (d.mode === "existing") {
     if (d.bmonth < d.start) { m.err = "Tracking can't start before the program start."; renderModal(); return; }
-    baseline = { month: d.bmonth, level: +d.level, points: Math.max(0, +d.points || 0), exam1: !!d.exam1 || +d.level >= 3, exam2: !!d.exam2 || +d.level >= 5, priorReqs: !!d.priorReqs };
+    baseline = { month: d.bmonth, level: +d.level, points: Math.max(0, +d.points || 0), exam1: !!d.exam1, exam2: !!d.exam2, priorReqs: !!d.priorReqs };
   }
-  if (m.type === "edit") {
-    const ok = await patchResident(m.rid, { name, start: d.start, baseline, notes: d.notes || "" }, "Profile saved");
-    if (ok) closeModal();
-  } else {
-    const r = newResident(name, d.start, baseline); r.notes = d.notes || "";
-    const id = await createResident(r);
-    if (id) { closeModal(); toast(name + " added"); }
-  }
+  if (m.type === "edit") { if (await patchResident(m.rid, { name, start: d.start, baseline, notes: d.notes || "" }, "Profile saved")) closeModal(); }
+  else { const r = newResident(name, d.start, baseline); r.notes = d.notes || ""; if (await createResident(r)) { closeModal(); toast(name + " added"); } }
 }
-
 function parseLevel(s) {
   const k = String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const map = { attached: 0, att: 0, "4dayjunior": 1, "4day": 1, j4: 1, "3dayjunior": 2, "3day": 2, j3: 2, "2dayjunior": 3, j2: 3, "2daymidsenior": 4, "2daymid": 4, ms2: 4, m2: 4, midsenior: 4, "1daymidsenior": 5, "1daymid": 5, ms1: 5, m1: 5, senior: 6, sr: 6 };
+  const map = { attached: 0, att: 0, "4dayjunior": 1, "4day": 1, j4: 1, "3dayjunior": 2, "3day": 2, j3: 2, "2dayjunior": 3, j2: 3, "2daymidsenior": 4, ms2: 4, m2: 4, midsenior: 4, "1daymidsenior": 5, ms1: 5, m1: 5, senior: 6, sr: 6 };
   return k in map ? map[k] : null;
 }
 function parseYM(s) {
-  s = String(s || "").trim();
-  let m = s.match(/^(\d{4})[-\/.](\d{1,2})$/); if (m) return m[1] + "-" + m[2].padStart(2, "0");
-  m = s.match(/^(\d{1,2})[-\/.](\d{4})$/); if (m) return m[2] + "-" + m[1].padStart(2, "0");
-  m = s.match(/^([a-z]{3})[a-z]*\.?\s+(\d{4})$/i); if (m) { const k = MONTHS.findIndex(x => x.toLowerCase() === m[1].toLowerCase()); if (k >= 0) return m[2] + "-" + String(k + 1).padStart(2, "0"); }
+  s = String(s || "").trim(); let m;
+  if ((m = s.match(/^(\d{4})[-\/.](\d{1,2})$/))) return m[1] + "-" + m[2].padStart(2, "0");
+  if ((m = s.match(/^(\d{1,2})[-\/.](\d{4})$/))) return m[2] + "-" + m[1].padStart(2, "0");
+  if ((m = s.match(/^([a-z]{3})[a-z]*\.?\s+(\d{4})$/i))) { const k = MONTHS.findIndex(x => x.toLowerCase() === m[1].toLowerCase()); if (k >= 0) return m[2] + "-" + String(k + 1).padStart(2, "0"); }
   return null;
 }
 function parseImport(text) {
   return String(text || "").split(/\n/).map(l => l.trim()).filter(Boolean).map(line => {
     const p = line.split(/\t|,|;/).map(x => x.trim());
-    const out = { name: p[0], start: parseYM(p[1]), level: p[2] ? parseLevel(p[2]) : null, points: p[3] ? +p[3] : 0, err: "" };
+    const out = { name: p[0], start: parseYM(p[1]), level: p[2] ? parseLevel(p[2]) : null, err: "" };
     if (!out.name) out.err = "Missing name";
-    else if (!out.start || !validYM(out.start)) out.err = "Start month not recognised";
+    else if (!out.start) out.err = "Start month not recognised";
     else if (p[2] && out.level == null) out.err = "Level not recognised";
     else if (out.level == null && out.start < ymNow()) out.err = "Add their current level";
-    else if (isNaN(out.points)) out.err = "Points must be a number";
     return out;
   });
 }
 function importModal() {
-  const d = S.modal.draft, rows = parseImport(d.text), good = rows.filter(r => !r.err);
-  return `<div class="mhead"><h2>Import a list</h2><p class="small muted">One resident per line: name, program start, current level, points so far. Level and points are optional for someone starting this month. Separate with commas or paste columns from a spreadsheet.</p></div>
-  <div class="mbody">
-    <textarea id="imp-text" data-m="text" data-preview rows="7" placeholder="Name, 2025-07, 3-day junior, 640&#10;Name, 2024-03, 2-day midsenior&#10;Name, ${ymNow()}">${esc(d.text)}</textarea>
-    <p class="small muted">Levels: attached, 4-day junior, 3-day junior, 2-day junior, 2-day midsenior, 1-day midsenior, senior (or ATT, J4, J3, J2, MS2, MS1, SR). Exam passes are assumed from the level (2-day junior and up passed Exam 1; 1-day midsenior and up passed Exam 2), and lower levels' requirements count as signed off. You can adjust each profile afterwards.</p>
-    <div id="imp-preview">${importPreview(rows)}</div>
-  </div>
+  const rows = parseImport(S.modal.draft.text), good = rows.filter(r => !r.err);
+  return `<div class="mhead"><h2>Import a list</h2><p class="small muted">One resident per line: name, program start, current level. Commas, semicolons or spreadsheet columns all work. The transition rules apply: 80 opening points per completed month, Exam 1 counted for midseniors and up, Exam 2 for seniors.</p></div>
+  <div class="mbody"><textarea id="imp-text" data-m="text" data-preview rows="7" placeholder="Name, Mar 2023, senior&#10;Name, 2024-11, 2-day midsenior&#10;Name, ${ymNow()}">${esc(S.modal.draft.text)}</textarea>
+    <div id="imp-preview">${importPreview(rows)}</div></div>
   <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="imp-save" id="imp-save" ${good.length ? "" : "disabled"}>Add ${good.length || ""} resident${good.length === 1 ? "" : "s"}</button></div>`;
 }
 function importPreview(rows) {
   if (!rows.length) return "";
-  return `<div class="tablewrap"><table class="imp-table"><thead><tr><th>Name</th><th>Start</th><th>Level</th><th class="r">Points</th><th></th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.name)}</td><td>${r.start ? ymLabel(r.start) : "–"}</td><td>${r.level != null ? pillName(r.level) : r.err ? "–" : pillName(0)}</td><td class="r num">${r.err ? "–" : fmt(r.points)}</td><td>${r.err ? `<span class="chip hold">${esc(r.err)}</span>` : `<span class="chip ok">Ready</span>`}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="tablewrap"><table class="imp-table"><thead><tr><th>Name</th><th>Start</th><th>Level</th><th class="r">Opening points</th><th></th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.name)}</td><td>${r.start ? ymLabel(r.start) : "–"}</td><td>${r.err ? "–" : pillName(r.level == null ? 0 : r.level)}</td><td class="r num">${r.err ? "–" : fmt(Math.max(0, ymDiff(ymNow(), r.start)) * RULE.openingPoints)}</td><td>${r.err ? `<span class="chip hold">${esc(r.err)}</span>` : `<span class="chip ok">Ready</span>`}</td></tr>`).join("")}</tbody></table></div>`;
 }
 async function saveImport() {
-  const rows = parseImport(S.modal.draft.text).filter(r => !r.err);
-  const now = ymNow();
-  let n = 0;
-  for (const r of rows) {
+  const now = ymNow(); let n = 0;
+  for (const r of parseImport(S.modal.draft.text).filter(r => !r.err)) {
     const existing = r.level != null && (r.level > 0 || r.start < now);
-    const baseline = existing ? { month: now < r.start ? r.start : now, level: r.level, points: Math.max(0, r.points || 0), exam1: r.level >= 3, exam2: r.level >= 5, priorReqs: true } : null;
+    const baseline = existing ? { month: now, level: r.level, points: Math.max(0, ymDiff(now, r.start)) * RULE.openingPoints, exam1: r.level >= 4, exam2: r.level >= 6, priorReqs: true } : null;
     if (await createResident(newResident(r.name, r.start, baseline))) n++;
   }
   closeModal(); toast(`${n} resident${n === 1 ? "" : "s"} added`);
 }
-
 function examModal() {
   const d = S.modal.draft;
   return `<div class="mhead"><h2>Exam ${S.modal.n}: record an attempt</h2></div>
   <div class="mbody"><div class="fields"><div class="field"><span>Month taken</span>${monthSel("month", d.month)}</div>
-  <label class="field"><span>Score out of 100</span><input type="number" min="0" max="100" id="ex-score" data-m="score" value="${esc(d.score)}"></label></div>
-  <p class="small muted">Pass mark ${RULE.passMark}.</p><p id="ex-err" class="small" style="color:var(--hold)" ${S.modal.err ? "" : "hidden"}>${esc(S.modal.err || "")}</p></div>
+  <label class="field"><span>Score out of 100</span><input type="number" min="0" max="100" id="ex-score" data-m="score" value="${esc(d.score)}"></label></div><p class="small muted">Pass mark ${RULE.passMark}.</p>${errLine()}</div>
   <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="ex-save">Save attempt</button></div>`;
-}
-function signoffModal() {
-  const d = S.modal.draft;
-  return `<div class="mhead"><h2>Group ${S.modal.g}: consultant sign-off</h2><p class="small muted">On an assessed case at step ${d.step}. Two different consultants are needed to move up.</p></div>
-  <div class="mbody"><div class="fields"><label class="field"><span>Consultant</span><input type="text" id="so-by" data-m="by" value="${esc(d.by)}"></label><label class="field"><span>Date</span><input type="date" id="so-date" data-m="date" value="${esc(d.date)}"></label></div>
-  <p id="so-err" class="small" style="color:var(--hold)" ${S.modal.err ? "" : "hidden"}>${esc(S.modal.err || "")}</p></div>
-  <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="so-save">Add sign-off</button></div>`;
-}
-function surgEditModal() {
-  const d = S.modal.draft;
-  return `<div class="mhead"><h2>Group ${S.modal.g}: correct the record</h2><p class="small muted">Use this to enter where an existing resident already stands. Changing the step clears the sign-offs at the old step.</p></div>
-  <div class="mbody"><div class="fields"><label class="field"><span>Step</span><select id="se-step" data-m="step">${STEPS.map((s, k) => `<option value="${k + 1}" ${+d.step === k + 1 ? "selected" : ""}>${k + 1}. ${esc(s)}</option>`).join("")}</select></label>
-  <label class="field"><span>Cases logged at this step</span><input type="number" min="0" id="se-cases" data-m="cases" value="${esc(d.cases)}"></label></div></div>
-  <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="se-save">Save</button></div>`;
 }
 function deleteModal() {
   const r = S.residents[S.modal.rid];
-  return `<div class="mhead"><h2>Delete ${esc(r.name)}?</h2></div><div class="mbody"><p>This removes their profile, every monthly score, requirement sign-off, exam and surgical record. It cannot be undone.</p></div>
+  return `<div class="mhead"><h2>Delete ${esc(r.name)}?</h2></div><div class="mbody"><p>This removes their profile, monthly scores, requirement sign-offs and exams. Cases they were on stay in the theatre log. It cannot be undone.</p></div>
   <div class="mfoot"><button class="btn" data-act="close">Keep resident</button><button class="btn danger" data-act="del-confirm">Delete resident</button></div>`;
+}
+function tsignModal() {
+  const d = S.modal.draft;
+  return `<div class="mhead"><h2>Transition sign-off</h2><p class="small muted">${esc(nm(S.modal.rid))} · ${esc(STEP[S.modal.k][0])}. Two satisfactory performances observed by two different specialists complete this step.</p></div>
+  <div class="mbody"><div class="fields"><label class="field"><span>First specialist</span><input type="text" list="spec-list" id="ts-a" data-m="a" value="${esc(d.a)}"></label><label class="field"><span>Second specialist</span><input type="text" list="spec-list" id="ts-b" data-m="b" value="${esc(d.b)}"></label><label class="field"><span>Date</span><input type="date" id="ts-date" data-m="date" value="${esc(d.date)}"></label></div>${errLine()}</div>
+  <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="ts-save">Complete step</button></div>`;
+}
+function lpBaseModal() {
+  return `<div class="mhead"><h2>Lumbar punctures before launch</h2></div><div class="mbody"><label class="field"><span>Successful punctures already done</span><input type="number" min="0" id="lpb" data-m="n" value="${esc(S.modal.draft.n)}"></label></div>
+  <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="lpb-save">Save</button></div>`;
+}
+
+/* theatre modals */
+function residentPicker(selected, field, filter) {
+  const ids = sortedIds().filter(id => !filter || filter(id));
+  return `<div class="pickgrid">${ids.map(id => { const E = run(S.residents[id]); return `<label><input type="checkbox" id="pk-${field}-${id}" data-pick="${field}" value="${id}" ${selected.includes(id) ? "checked" : ""}>${pill(E.level)}<span>${esc(S.residents[id].name)}</span>${E.holdNow ? `<span class="chip hold">Hold</span>` : ""}</label>`; }).join("")}</div>`;
+}
+function planHTML(plan, cs) {
+  const roleChip = r => ({ performs: "accent", closes: "accent", backup: "ok" }[r] || "");
+  return `<div class="plancase">${cs ? `<div class="row"><strong>${esc(cs.proc === "adv" ? (cs.title || "Advanced case") : PROCS[cs.proc].name)}</strong>${cs.specialist ? `<span class="small muted">${esc(cs.specialist)}</span>` : ""}</div>` : ""}
+    ${plan.team.map(t => `<div class="planrow"><div><strong>${esc(nm(t.id))}</strong> ${pill(run(S.residents[t.id]).level)}</div><div><span class="chip ${roleChip(t.role)}">${esc(t.role)}</span> ${t.steps && t.steps.length ? esc(t.steps.map(k => STEP[k][0]).join(", ")) : ""}<div class="why">${esc(t.why || "")}</div></div></div>`).join("") || `<p class="small muted">No residents placed.</p>`}
+    ${plan.specialistSteps && plan.specialistSteps.length ? `<div class="planrow"><div><strong>Specialist</strong></div><div>${esc(plan.specialistSteps.map(k => STEP[k][0]).join(", "))}<div class="why">Above every resident's ceiling or learning step on this case</div></div></div>` : ""}
+    ${plan.noBackup ? `<div class="note warn">No resident here has ${RULE.lpBackup} successful punctures, so the specialist stands by as backup.</div>` : ""}
+    ${(plan.empty || []).length ? `<div class="why">${esc(plan.empty.join(". "))}</div>` : ""}</div>`;
+}
+function emModal() {
+  const d = S.modal.draft, ym = (d.date || todayISO()).slice(0, 7);
+  const plan = d.rids.length ? planEmergency(d.proc, d.rids, ym) : null;
+  return `<div class="mhead"><h2>Emergency case</h2><p class="small muted">The team is the on-call shift. Tick who is on the case and the tracker splits the steps.</p></div>
+  <div class="mbody"><div class="fields">
+    <label class="field"><span>Procedure</span><select id="em-proc" data-m="proc" data-rerender>${["cranio", "vent", "csdh", "lp"].map(p => `<option value="${p}" ${d.proc === p ? "selected" : ""}>${esc(PROCS[p].name)}</option>`).join("")}</select></label>
+    <label class="field"><span>Date</span><input type="date" id="em-date" data-m="date" value="${esc(d.date)}"></label>
+    <label class="field"><span>Supervising specialist</span><input type="text" list="spec-list" id="em-spec" data-m="specialist" value="${esc(d.specialist)}"></label></div>
+    <div class="field"><span>On the case</span>${residentPicker(d.rids, "rids", id => run(S.residents[id]).level >= 1)}</div>
+    ${plan ? `<div class="stack"><h3>Assignment</h3>${planHTML(plan)}</div>` : ""}${errLine()}</div>
+  <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="em-save" ${plan && plan.team.length ? "" : "disabled"}>Save case</button></div>`;
+}
+function listModal() {
+  const d = S.modal.draft, ym = (d.date || todayISO()).slice(0, 7);
+  const plans = d.cases.length ? planList(d.cases, d.away, ym) : [];
+  return `<div class="mhead"><h2>Elective list</h2><p class="small muted">Fill the list the day before it runs. Residents below their monthly minimum go first, furthest behind first; spare places go by priority score. Each resident gets at most one place on a list.</p></div>
+  <div class="mbody"><div class="fields">
+    <label class="field"><span>List</span><select id="ls-list" data-m="list">${["Sunday list", "Wednesday list", "Saturday list"].map(l => `<option ${d.list === l ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+    <label class="field"><span>Date</span><input type="date" id="ls-date" data-m="date" value="${esc(d.date)}" data-rerender></label></div>
+    <div class="stack"><div class="row"><h3>Cases</h3><div class="row" style="margin-left:auto"><button class="btn sm" data-act="ls-add" data-v="spine">+ Spine</button><button class="btn sm" data-act="ls-add" data-v="tp">+ TP shunt</button><button class="btn sm" data-act="ls-add" data-v="adv">+ Advanced</button></div></div>
+      ${d.cases.map((c, k) => `<div class="card stack" style="padding:12px"><div class="caserow"><strong>${k + 1}. ${esc(PROCS[c.proc].name)}</strong><input type="text" list="spec-list" id="ls-${k}-spec" data-lc="${k}" data-f="specialist" value="${esc(c.specialist)}" placeholder="Specialist" aria-label="Specialist"><button class="btn ghost sm" data-act="ls-del" data-k="${k}">Remove</button></div>
+        ${c.proc === "adv" ? `<input type="text" id="ls-${k}-title" data-lc="${k}" data-f="title" value="${esc(c.title)}" placeholder="Procedure, e.g. tumor craniotomy" aria-label="Procedure">` : ""}
+        ${c.proc === "spine" ? `<div class="pickgrid">${PROCS.spine.optional.map(s => `<label><input type="checkbox" id="ls-${k}-${s}" data-lstep="${k}" value="${s}" ${c.steps.includes(s) ? "checked" : ""}>${esc(STEP[s][0])}</label>`).join("")}</div><p class="small muted">Tick the steps this case includes. Closure, incision, muscle separation and hemostasis are always included.</p>` : ""}</div>`).join("") || `<p class="small muted">Add the list's cases.</p>`}</div>
+    <div class="field"><span>On leave or post-call (skipped)</span>${residentPicker(d.away, "away", id => run(S.residents[id]).level >= 1)}</div>
+    ${plans.length ? `<div class="stack"><h3>Assignment</h3><div class="plan">${plans.map((p, k) => planHTML(p, d.cases[k])).join("")}</div></div>` : ""}${errLine()}</div>
+  <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="ls-save" ${d.cases.length ? "" : "disabled"}>Save list</button></div>`;
+}
+function recordModal() {
+  const d = S.modal.draft;
+  const title = d.proc === "adv" ? (d.title || "Advanced case") : PROCS[d.proc].name;
+  let body;
+  if (d.proc === "lp") {
+    const lp = d.lp || {};
+    body = `<div class="stack"><p>Learner: <strong>${esc(nm(lp.learner))}</strong>${lp.backup ? ` · Backup: <strong>${esc(nm(lp.backup))}</strong>` : " · Backup: specialist"}</p>
+      <div class="field"><span>Result, recorded by the backup</span><div class="seg" role="group">${[["learner", "CSF obtained by the learner"], ["backup", "Backup took over, CSF obtained"], ["fail", "No CSF"]].map(([v, l]) => `<button type="button" class="txt" data-act="rec-lp" data-v="${v}" aria-pressed="${lp.result === v}">${l}</button>`).join("")}</div></div></div>`;
+  } else {
+    body = d.team.map((m, i) => `<div class="card stack" style="padding:12px"><div class="row"><strong>${esc(nm(m.rid))}</strong> <span class="chip">${esc(m.role)}</span><label class="row" style="margin-left:auto"><input type="checkbox" id="rc-att-${i}" data-ratt="${i}" ${m.attended !== false ? "checked" : ""}> Attended</label></div>
+      ${m.why ? `<div class="why">${esc(m.why)}</div>` : ""}
+      ${(m.steps || []).map(k => { const p = ((d.perf || {})[m.rid] || {})[k] || {};
+        return `<div class="recstep"><span>${esc(STEP[k][0])}</span><div class="seg" role="group" aria-label="Outcome">${Object.entries(OUTCOMES).map(([v, l]) => `<button type="button" class="txt ${v === "taken" ? "bad" : v === "help" ? "mid" : ""}" data-act="rec-o" data-r="${m.rid}" data-k="${k}" data-v="${v}" aria-pressed="${p.o === v}">${l}</button>`).join("")}</div><input type="text" list="spec-list" id="rc-by-${i}-${k}" data-rby="${m.rid}" data-k="${k}" value="${esc(p.by || d.specialist || "")}" placeholder="Specialist" aria-label="Specialist"></div>`; }).join("")}</div>`).join("");
+  }
+  return `<div class="mhead"><span class="label">${dateLabel(d.date)} · ${d.kind === "elective" ? esc(d.list || "Elective") : "Emergency"}</span><h2>${esc(title)}</h2><p class="small muted">The supervising specialist records each step on the day. Only satisfactory performances count.</p></div>
+  <div class="mbody"><label class="field"><span>Supervising specialist</span><input type="text" list="spec-list" id="rc-spec" data-m="specialist" value="${esc(d.specialist || "")}"></label>${body}
+    ${(d.specialistSteps || []).length ? `<p class="small muted">Specialist performed: ${esc(d.specialistSteps.map(k => STEP[k][0]).join(", "))}.</p>` : ""}${errLine()}</div>
+  <div class="mfoot"><button class="btn danger left" data-act="rec-del">Delete case</button><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="rec-save">Save record</button></div>`;
+}
+function caseFromPlan(base, plan) {
+  return Object.assign({}, base, { team: plan.team.map(t => ({ rid: t.id, role: t.role, steps: t.steps || [], why: t.why || "", attended: true })), specialistSteps: plan.specialistSteps || [], perf: {}, lp: plan.lp || null, createdAt: new Date().toISOString() });
 }
 
 /* ---------- events ---------- */
 document.addEventListener("click", async e => {
   const el = e.target.closest("[data-act]");
   if (!el) return;
-  const act = el.dataset.act;
+  const act = el.dataset.act, m = S.modal;
   if (act === "scrim") { if (e.target === el) closeModal(); return; }
-  const m = S.modal;
   switch (act) {
-    case "nav": S.view = el.dataset.v; S.modal = null; window.scrollTo(0, 0); render(); break;
+    case "nav": S.view = el.dataset.v; closeModal(); window.scrollTo(0, 0); render(); break;
     case "open": S.view = "resident"; S.rid = el.dataset.id; S.tab = "progress"; window.scrollTo(0, 0); render(); break;
     case "tab": S.tab = el.dataset.v; render(); break;
-    case "ym": { const n = ymAdd(S.scoreYM, +el.dataset.d); if (n <= ymNow()) { S.scoreYM = n; render(); } break; }
-    case "demo-on": S.demo = true; S.residents = demoResidents(); S.view = "roster"; render(); break;
-    case "demo-off": S.demo = false; S.residents = S.live; S.view = "roster"; render(); break;
+    case "ym": { const k = el.dataset.k, n = ymAdd(S[k], +el.dataset.d); if (n <= ymNow()) { S[k] = n; render(); } break; }
     case "add": openAdd(); break;
     case "edit": openAdd(S.rid); break;
     case "import": openModal({ type: "import", draft: { text: "" } }); break;
     case "delete": openModal({ type: "delete", rid: S.rid }); break;
     case "del-confirm": { const id = m.rid, name = S.residents[id].name; closeModal(); S.view = "roster"; await deleteResident(id); render(); toast(name + " deleted"); break; }
     case "close": closeModal(); break;
+    case "ar-pts80": m.draft.points = Math.max(0, ymDiff(m.draft.bmonth, m.draft.start)) * RULE.openingPoints; renderModal(); break;
+    case "ar-save": saveAdd(); break;
+    case "imp-save": saveImport(); break;
     case "score": openScore(el.dataset.id, el.dataset.ym); break;
     case "sc-miss": m.draft.misses[+el.dataset.k] = +el.dataset.v; renderModal(); break;
-    case "sc-relevel": { const lk = LEVELS[+el.dataset.v].key; m.draft.level = lk; m.draft.misses = lk === "att" ? [] : DUTIES[lk].map(() => 0); if (lk !== "att") { m.draft.assigned = m.draft.assigned || SURG_MIN[lk]; } renderModal(); break; }
+    case "sc-relevel": { const lk = LEVELS[+el.dataset.v].key; m.draft.level = lk; m.draft.misses = lk === "att" ? [] : DUTIES[lk].map(() => 0); renderModal(); break; }
     case "sc-ev-add": m.draft.events.push({ tier: el.dataset.v, date: defaultDate(m.ym), note: "", by: "" }); renderModal(); break;
     case "sc-ev-del": m.draft.events.splice(+el.dataset.k, 1); renderModal(); break;
     case "sc-bn-add": m.draft.bonuses.push({ kind: el.dataset.v, date: defaultDate(m.ym), note: "" }); renderModal(); break;
     case "sc-bn-del": m.draft.bonuses.splice(+el.dataset.k, 1); renderModal(); break;
     case "sc-save": {
       const d = clone(m.draft);
-      d.assigned = Math.max(0, +d.assigned || 0); d.attended = Math.max(0, Math.min(+d.attended || 0, d.assigned));
-      if (!d.events.some(x => x.tier === "critical")) d.committee = null;
-      else d.committee = { holdMonths: Math.max(3, +((d.committee || {}).holdMonths) || 3), demote: !!(d.committee || {}).demote };
+      d.surgOverride = !!d.surgOverride;
+      if (d.surgOverride) { d.assigned = Math.max(0, +d.assigned || 0); d.attended = Math.max(0, Math.min(+d.attended || 0, d.assigned)); } else { d.assigned = null; d.attended = null; }
+      d.committee = d.events.some(x => x.tier === "critical") ? { holdMonths: Math.max(3, +((d.committee || {}).holdMonths) || 3), demote: !!(d.committee || {}).demote } : null;
       d.savedAt = new Date().toISOString();
       if (await patchResident(m.rid, { months: { [m.ym]: d } }, "Month saved")) closeModal();
       break;
     }
-    case "sc-clear": {
-      const res = clone(S.residents[m.rid]); delete res.months[m.ym];
-      if (writesLocal()) { S.residents[m.rid] = res; render(); }
-      else { try { await S.db.doc("residents/" + m.rid).set(res); } catch (err) { toast(dbErr(err)); break; } }
-      closeModal(); toast("Month cleared"); break;
-    }
-    case "ar-save": saveAdd(); break;
-    case "imp-save": saveImport(); break;
+    case "sc-clear": { const res = clone(S.residents[m.rid]); delete res.months[m.ym]; if (await setResident(m.rid, res)) { closeModal(); toast("Month cleared"); } break; }
     case "exam-add": openModal({ type: "exam", n: +el.dataset.n, draft: { month: ymAdd(ymNow(), -1), score: "" } }); break;
     case "ex-save": {
       const d = m.draft, sc = d.score === "" ? NaN : +d.score;
       if (isNaN(sc) || sc < 0 || sc > 100) { m.err = "Enter a score between 0 and 100."; renderModal(); break; }
-      const list = attempts(S.residents[S.rid], m.n).concat([{ month: d.month, score: sc }]);
-      if (await patchResident(S.rid, { exams: { ["e" + m.n]: list } }, sc >= RULE.passMark ? `Exam ${m.n} passed` : "Attempt recorded")) closeModal();
+      if (await patchResident(S.rid, { exams: { ["e" + m.n]: attempts(S.residents[S.rid], m.n).concat([{ month: d.month, score: sc }]) } }, sc >= RULE.passMark ? `Exam ${m.n} passed` : "Attempt recorded")) closeModal();
       break;
     }
     case "exam-del": {
@@ -1159,23 +1360,49 @@ document.addEventListener("click", async e => {
       if (k >= 0) { list.splice(k, 1); patchResident(S.rid, { exams: { ["e" + n]: list } }, "Attempt removed"); }
       break;
     }
-    case "case": { const g = el.dataset.g, s = surgState(S.residents[S.rid], g, run(S.residents[S.rid])); patchResident(S.rid, { surg: { [g]: { step: s.step, cases: Math.max(0, s.cases + +el.dataset.d), signoffs: s.signoffs || [] } } }); break; }
-    case "signoff": { const g = el.dataset.g, s = surgState(S.residents[S.rid], g, run(S.residents[S.rid])); openModal({ type: "signoff", g, draft: { by: "", date: todayISO(), step: s.step } }); break; }
-    case "so-save": {
-      const d = m.draft; if (!(d.by || "").trim()) { m.err = "Enter the consultant's name."; renderModal(); break; }
-      const s = surgState(S.residents[S.rid], m.g, run(S.residents[S.rid]));
-      if (await patchResident(S.rid, { surg: { [m.g]: { step: s.step, cases: s.cases, signoffs: (s.signoffs || []).concat([{ by: d.by.trim(), date: d.date }]) } } }, "Sign-off added")) closeModal();
+    case "tsign": openModal({ type: "tsign", rid: S.rid, k: el.dataset.k, draft: { a: "", b: "", date: todayISO() } }); break;
+    case "ts-save": {
+      const d = m.draft;
+      if (!d.a.trim() || !d.b.trim()) { m.err = "Enter both specialists."; renderModal(); break; }
+      if (normName(d.a) === normName(d.b)) { m.err = "The two performances must be observed by different specialists."; renderModal(); break; }
+      if (await patchResident(m.rid, { stepBase: { [m.k]: { by: [d.a.trim(), d.b.trim()], date: d.date } } }, "Step completed")) closeModal();
       break;
     }
-    case "promote": { const g = el.dataset.g, s = surgState(S.residents[S.rid], g, run(S.residents[S.rid])); if (s.canPromote) patchResident(S.rid, { surg: { [g]: { step: s.step + 1, cases: 0, signoffs: [] } } }, `Group ${g}: step ${s.step + 1}`); break; }
-    case "surg-edit": { const g = el.dataset.g, s = surgState(S.residents[S.rid], g, run(S.residents[S.rid])); openModal({ type: "surg-edit", g, draft: { step: s.step, cases: s.cases, oldStep: s.step, signoffs: s.signoffs } }); break; }
-    case "se-save": {
-      const d = m.draft, step = Math.min(5, Math.max(1, +d.step || 1));
-      if (await patchResident(S.rid, { surg: { [m.g]: { step, cases: Math.max(0, +d.cases || 0), signoffs: step === d.oldStep ? (d.signoffs || []) : [] } } }, "Saved")) closeModal();
+    case "tsign-del": patchResident(S.rid, { stepBase: { [el.dataset.k]: null } }, "Sign-off removed"); break;
+    case "lp-base": openModal({ type: "lpbase", draft: { n: +S.residents[S.rid].lpBase || 0 } }); break;
+    case "lpb-save": if (await patchResident(S.rid, { lpBase: Math.max(0, +m.draft.n || 0) }, "Saved")) closeModal(); break;
+    case "set-specs": { const list = document.getElementById("set-specs").value.split("\n").map(s => s.trim()).filter(Boolean); if (await saveSettings({ specialists: list })) toast("Specialists saved"); break; }
+    case "new-em": openModal({ type: "em", draft: { proc: "cranio", date: todayISO(), specialist: "", rids: [] } }); break;
+    case "em-save": {
+      const d = m.draft;
+      if (!d.date) { m.err = "Choose the date."; renderModal(); break; }
+      const plan = planEmergency(d.proc, d.rids, d.date.slice(0, 7)), id = "c" + uid();
+      if (await saveCases({ [id]: caseFromPlan({ date: d.date, kind: "emergency", proc: d.proc, specialist: d.specialist.trim() }, plan) })) { closeModal(); S.theatreYM = d.date.slice(0, 7); render(); toast("Case saved. Record the steps after the operation."); }
       break;
     }
+    case "new-list": { const t = new Date(); t.setDate(t.getDate() + 1); openModal({ type: "list", draft: { list: "Sunday list", date: t.toISOString().slice(0, 10), cases: [], away: [] } }); break; }
+    case "ls-add": { const p = el.dataset.v; m.draft.cases.push({ proc: p, specialist: "", title: "", steps: PROCS[p].steps.filter(s => !(PROCS[p].optional || []).includes(s)).concat(p === "spine" ? ["sp.lam", "sp.disc"] : []) }); sortSteps(m.draft.cases[m.draft.cases.length - 1]); renderModal(); break; }
+    case "ls-del": m.draft.cases.splice(+el.dataset.k, 1); renderModal(); break;
+    case "ls-save": {
+      const d = m.draft;
+      if (!d.date) { m.err = "Choose the date."; renderModal(); break; }
+      const plans = planList(d.cases, d.away, d.date.slice(0, 7)), map = {};
+      d.cases.forEach((c, k) => { map["c" + uid()] = caseFromPlan({ date: d.date, kind: "elective", list: d.list, proc: c.proc, title: c.title || "", steps: c.steps, specialist: (c.specialist || "").trim() }, plans[k]); });
+      if (await saveCases(map)) { closeModal(); S.theatreYM = d.date.slice(0, 7); render(); toast(`${d.cases.length} case${d.cases.length === 1 ? "" : "s"} saved`); }
+      break;
+    }
+    case "case-open": { const c = allCases().find(x => x.id === el.dataset.id); if (c) openModal({ type: "record", id: c.id, draft: clone(c) }); break; }
+    case "rec-o": { const d = m.draft; d.perf = d.perf || {}; const r = d.perf[el.dataset.r] = d.perf[el.dataset.r] || {}; const cur = r[el.dataset.k] || {}; r[el.dataset.k] = cur.o === el.dataset.v ? null : { o: el.dataset.v, by: cur.by || d.specialist || "" }; renderModal(); break; }
+    case "rec-lp": m.draft.lp = Object.assign({}, m.draft.lp, { result: el.dataset.v }); renderModal(); break;
+    case "rec-save": {
+      const d = clone(m.draft); delete d.id; delete d.ym; d.closed = true;
+      if (await saveCases({ [m.id]: d })) { closeModal(); toast("Record saved"); }
+      break;
+    }
+    case "rec-del": if (await saveCases({ [m.id]: null })) { closeModal(); toast("Case deleted"); } break;
   }
 });
+function sortSteps(c) { c.steps = PROCS[c.proc].steps.filter(s => c.steps.includes(s)); }
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && S.modal) { closeModal(); return; }
   if ((e.key === "Enter" || e.key === " ") && e.target.matches("tr[data-act]")) { e.preventDefault(); e.target.click(); }
@@ -1183,20 +1410,15 @@ document.addEventListener("keydown", e => {
 function onField(e) {
   const t = e.target;
   if (t.id === "q") { S.q = t.value; render(); return; }
-  if (t.dataset.actChange === "req" && e.type === "change") {
-    const v = t.value || null;
-    patchResident(S.rid, { reqs: { [t.dataset.req]: { [t.dataset.slot]: v } } });
-    return;
-  }
+  if (t.dataset.req && e.type === "change") { patchResident(S.rid, { reqs: { [t.dataset.req]: { [t.dataset.slot]: t.value || null } } }); return; }
   const m = S.modal; if (!m) return;
   const d = m.draft;
-  if (t.dataset.mm) {
-    const wrap = t.closest(".msel");
-    d[t.dataset.mm] = wrap.querySelector('[data-part="y"]').value + "-" + wrap.querySelector('[data-part="m"]').value;
-  } else if (t.dataset.m) {
+  let rerender = false;
+  if (t.dataset.mm) { const w = t.closest(".msel"); d[t.dataset.mm] = w.querySelector('[data-part="y"]').value + "-" + w.querySelector('[data-part="m"]').value; rerender = m.type === "add" || m.type === "edit"; }
+  else if (t.dataset.m) {
     d[t.dataset.m] = t.type === "checkbox" ? t.checked : t.value;
-    if (t.dataset.m === "level" && m.type !== "edit") { d.exam1 = +t.value >= 3; d.exam2 = +t.value >= 5; }
-    if (t.dataset.rerender != null && e.type === "change") { renderModal(); return; }
+    if (t.dataset.m === "level" && m.type === "add") { d.exam1 = +t.value >= 4; d.exam2 = +t.value >= 6; d.points = Math.max(0, ymDiff(d.bmonth, d.start)) * RULE.openingPoints; }
+    if (t.dataset.rerender != null && e.type === "change") rerender = true;
     if (t.dataset.preview != null) {
       const rows = parseImport(d.text), good = rows.filter(r => !r.err);
       document.getElementById("imp-preview").innerHTML = importPreview(rows);
@@ -1204,38 +1426,34 @@ function onField(e) {
     }
   } else if (t.dataset.sc) {
     const f = t.dataset.sc;
-    if (f === "holdMonths" || f === "demote") { d.committee = Object.assign({}, d.committee, { [f]: t.type === "checkbox" ? t.checked : t.value }); }
-    else d[f] = t.value;
-  } else if (t.dataset.ev != null) {
-    d.events[+t.dataset.ev][t.dataset.f] = t.value;
-    if (t.dataset.f === "tier" && e.type === "change") { renderModal(); return; }
-  } else if (t.dataset.bn != null) {
-    d.bonuses[+t.dataset.bn][t.dataset.f] = t.value;
-  }
-  if (m.type === "score") {
-    const res = S.residents[m.rid];
-    const temp = Object.assign({}, res, { months: Object.assign({}, res.months, { [m.ym]: d }) });
-    const row = run(temp).rows.find(r => r.ym === m.ym);
-    const box = document.getElementById("sc-summary"); if (box) box.innerHTML = scoreSummary(row);
-  }
+    if (f === "holdMonths" || f === "demote") d.committee = Object.assign({}, d.committee, { [f]: t.type === "checkbox" ? t.checked : t.value });
+    else d[f] = t.type === "checkbox" ? t.checked : t.value;
+    if (t.dataset.rerender != null) rerender = true;
+  } else if (t.dataset.ev != null) { d.events[+t.dataset.ev][t.dataset.f] = t.value; if (t.dataset.f === "tier" && e.type === "change") rerender = true; }
+  else if (t.dataset.bn != null) d.bonuses[+t.dataset.bn][t.dataset.f] = t.value;
+  else if (t.dataset.pick) { if (e.type !== "change") return; const set = new Set(d[t.dataset.pick]); t.checked ? set.add(t.value) : set.delete(t.value); d[t.dataset.pick] = [...set]; rerender = true; }
+  else if (t.dataset.lc != null) d.cases[+t.dataset.lc][t.dataset.f] = t.value;
+  else if (t.dataset.lstep != null) { if (e.type !== "change") return; const c = d.cases[+t.dataset.lstep]; c.steps = t.checked ? c.steps.concat([t.value]) : c.steps.filter(s => s !== t.value); sortSteps(c); rerender = true; }
+  else if (t.dataset.ratt != null) d.team[+t.dataset.ratt].attended = t.checked;
+  else if (t.dataset.rby) { d.perf = d.perf || {}; const r = d.perf[t.dataset.rby] = d.perf[t.dataset.rby] || {}; r[t.dataset.k] = Object.assign({}, r[t.dataset.k], { by: t.value }); if (!r[t.dataset.k].o) delete r[t.dataset.k].o; }
+  if (m.type === "em" && t.dataset.m === "date" && e.type === "change") rerender = true;
+  if (rerender) { renderModal(); return; }
+  if (m.type === "score") { const box = document.getElementById("sc-summary"); if (box) box.innerHTML = scoreSummary(); }
 }
 document.addEventListener("input", onField);
-document.addEventListener("change", e => { if (e.target.type === "radio" || e.target.tagName === "SELECT" || e.target.type === "checkbox" || e.target.dataset.actChange) onField(e); });
+document.addEventListener("change", e => { const t = e.target; if (t.type === "radio" || t.tagName === "SELECT" || t.type === "checkbox" || t.type === "date" || t.dataset.req) onField(e); });
 
 /* ---------- start ---------- */
 render();
 (async () => {
   const db = window.claude && window.claude.use ? await window.claude.use("db").catch(() => null) : null;
-  if (!db) { S.mode = "offline"; if (!S.demo) S.residents = S.live; render(); return; }
+  if (!db) { S.mode = "offline"; render(); return; }
   S.db = db;
   try { const u = await window.claude.use("user"); if (u) S.canEdit = await u.canEdit(); } catch (e) {}
-  db.collection("residents").onSnapshot(snap => {
-    S.mode = "live";
-    S.live = Object.fromEntries(snap.docs.map(d => [d.id, d.data()]));
-    if (!S.demo) S.residents = S.live;
-    if (S.view === "resident" && !S.residents[S.rid]) S.view = "roster";
-    render();
-    if (S.modal && S.modal.type === "delete" && !S.residents[S.modal.rid]) closeModal();
-  }, err => { S.mode = "offline"; render(); toast("Lost the connection to the shared tracker. Reload to reconnect."); });
+  const live = () => { if (S.loaded.residents && S.loaded.cases) S.mode = "live"; invalidate(); if (S.view === "resident" && !S.residents[S.rid]) S.view = "roster"; render(); if (S.modal && S.modal.type === "delete" && !S.residents[S.modal.rid]) closeModal(); };
+  const fail = () => { S.mode = "offline"; render(); toast("Lost the connection to the shared tracker. Reload to reconnect."); };
+  db.collection("residents").onSnapshot(snap => { S.residents = Object.fromEntries(snap.docs.map(d => [d.id, Object.assign({}, d.data(), { _id: d.id })])); S.loaded.residents = true; live(); }, fail);
+  db.collection("cases").onSnapshot(snap => { S.caseDocs = Object.fromEntries(snap.docs.map(d => [d.id, d.data()])); S.loaded.cases = true; live(); }, fail);
+  db.doc("settings/program").onSnapshot(snap => { if (snap.exists) S.settings = Object.assign({ launch: "2026-10", specialists: [] }, snap.data()); invalidate(); render(); }, () => {});
 })();
 </script>
