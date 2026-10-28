@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,500..800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+Arabic:wght@400;700&display=swap">
 <style>
 /* Layout: a theatre-board tool. Navy masthead with section tabs over one working column up to 1200px;
    cases read like the OR whiteboard, records like a logbook. Tables scroll inside their own frames. */
@@ -18,30 +18,43 @@
   --mast-ink: #EAF2F6;
   --mast-muted: #9DB2C0;
   --mast-line: #24394B;
-  --accent: #0A6C80;
+  --accent: #0F766E;
   --accent-ink: #FFFFFF;
-  --accent-soft: #DCEEF2;
+  --accent-soft: #E0F2EF;
   --accent-bright: #5CC3D6;
   --hold: #B3261E; --hold-soft: #FBE7E5;
   --warn: #8A5300; --warn-soft: #F8EDD5;
   --ok: #1D7445; --ok-soft: #DFF1E6;
-  --l0: #E1ECF0; --l1: #C3DCE4; --l2: #9CC6D3; --l3: #6FAABD; --l4: #3F8AA2; --l5: #1F6A85; --l6: #0E3E57;
-  --l-ink-lo: #0F2A36; --l-ink-hi: #FFFFFF;
+  /* levels: juniors in blues, midseniors in teal-greens, seniors in violet */
+  --l0: #E3E8ED; --l1: #D6E7FA; --l2: #B5D3F5; --l3: #8DBBEE; --l4: #2E9C88; --l5: #1B7E6B; --l6: #6A4BC4;
+  --l-ink-lo: #132F4C; --l-ink-hi: #FFFFFF;
+  /* tone pairs (background, ink) for section tiles, categories, statuses */
+  --amber-bg: #FFF4D6; --amber-fg: #8A5A00;
+  --blue-bg: #E3EFFF;  --blue-fg: #1E4F9C;
+  --violet-bg: #EFE7FF; --violet-fg: #5B34A8;
+  --green-bg: #DFF5E6; --green-fg: #146C3A;
+  --rose-bg: #FFE5EA;  --rose-fg: #A3223F;
+  --teal-bg: #DCF3F1;  --teal-fg: #0D625B;
+  --orange-bg: #FFE9D9; --orange-fg: #9A4A0B;
+  --slate-bg: #E8ECF0; --slate-fg: #3C4A57;
   --scrim: rgba(7, 18, 27, .5);
   --shadow: 0 1px 2px rgba(14, 33, 48, .08), 0 12px 32px rgba(14, 33, 48, .14);
   --r: 10px;
   --f-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
-  --f-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-body: "Atkinson Hyperlegible", "Noto Sans Arabic", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0A131A; --surface: #101C25; --sunken: #16242E; --ink: #E2ECF1; --muted: #93A7B4; --faint: #6E8290; --line: #22333F;
     --mast: #07111A; --mast-ink: #E2ECF1; --mast-muted: #8EA3B1; --mast-line: #1B2C39;
-    --accent: #52B9CD; --accent-ink: #04202A; --accent-soft: #123441; --accent-bright: #6FD0E2;
+    --accent: #2BB3A5; --accent-ink: #04201D; --accent-soft: #133A36; --accent-bright: #6FD0E2;
     --hold: #FF8F84; --hold-soft: #3A1714; --warn: #F2BC55; --warn-soft: #33260C; --ok: #6ED69C; --ok-soft: #0F2F1E;
-    --l0: #1A2B35; --l1: #1C3B49; --l2: #1F4E60; --l3: #24647A; --l4: #2F8098; --l5: #4AA2BA; --l6: #85CEDF;
-    --l-ink-lo: #DCEDF3; --l-ink-hi: #05202A;
+    --l0: #26313A; --l1: #1A3550; --l2: #1F4468; --l3: #285A88; --l4: #2B8C7A; --l5: #3FAF98; --l6: #9C84F0;
+    --l-ink-lo: #DCEBFA; --l-ink-hi: #071A16;
+    --amber-bg: #3B2F12; --amber-fg: #FFD27A; --blue-bg: #172B47; --blue-fg: #9CC3FF; --violet-bg: #2A1F45; --violet-fg: #C9B3FF;
+    --green-bg: #133322; --green-fg: #8BE0A9; --rose-bg: #3D1820; --rose-fg: #FF9CB0; --teal-bg: #123533; --teal-fg: #84DED4;
+    --orange-bg: #3C2414; --orange-fg: #FFB57D; --slate-bg: #26313A; --slate-fg: #C2CCD5;
     --scrim: rgba(0, 0, 0, .6);
     --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.45);
     color-scheme: dark;
@@ -50,10 +63,13 @@
 :root[data-theme="dark"] {
   --bg: #0A131A; --surface: #101C25; --sunken: #16242E; --ink: #E2ECF1; --muted: #93A7B4; --faint: #6E8290; --line: #22333F;
   --mast: #07111A; --mast-ink: #E2ECF1; --mast-muted: #8EA3B1; --mast-line: #1B2C39;
-  --accent: #52B9CD; --accent-ink: #04202A; --accent-soft: #123441; --accent-bright: #6FD0E2;
+  --accent: #2BB3A5; --accent-ink: #04201D; --accent-soft: #133A36; --accent-bright: #6FD0E2;
   --hold: #FF8F84; --hold-soft: #3A1714; --warn: #F2BC55; --warn-soft: #33260C; --ok: #6ED69C; --ok-soft: #0F2F1E;
-  --l0: #1A2B35; --l1: #1C3B49; --l2: #1F4E60; --l3: #24647A; --l4: #2F8098; --l5: #4AA2BA; --l6: #85CEDF;
-  --l-ink-lo: #DCEDF3; --l-ink-hi: #05202A;
+  --l0: #26313A; --l1: #1A3550; --l2: #1F4468; --l3: #285A88; --l4: #2B8C7A; --l5: #3FAF98; --l6: #9C84F0;
+  --l-ink-lo: #DCEBFA; --l-ink-hi: #071A16;
+  --amber-bg: #3B2F12; --amber-fg: #FFD27A; --blue-bg: #172B47; --blue-fg: #9CC3FF; --violet-bg: #2A1F45; --violet-fg: #C9B3FF;
+  --green-bg: #133322; --green-fg: #8BE0A9; --rose-bg: #3D1820; --rose-fg: #FF9CB0; --teal-bg: #123533; --teal-fg: #84DED4;
+  --orange-bg: #3C2414; --orange-fg: #FFB57D; --slate-bg: #26313A; --slate-fg: #C2CCD5;
   --scrim: rgba(0, 0, 0, .6);
   --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 32px rgba(0,0,0,.45);
   color-scheme: dark;
@@ -75,6 +91,27 @@ p { margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* icons and tones */
+.ic { width: 18px; height: 18px; flex: none; }
+.btn .ic { width: 16px; height: 16px; margin-left: -2px; }
+.btn.sm .ic { width: 14px; height: 14px; }
+.btn.primary .ic { opacity: .95; }
+.tone-amber { --tone-bg: var(--amber-bg); --tone-fg: var(--amber-fg); }
+.tone-blue { --tone-bg: var(--blue-bg); --tone-fg: var(--blue-fg); }
+.tone-violet { --tone-bg: var(--violet-bg); --tone-fg: var(--violet-fg); }
+.tone-green { --tone-bg: var(--green-bg); --tone-fg: var(--green-fg); }
+.tone-rose { --tone-bg: var(--rose-bg); --tone-fg: var(--rose-fg); }
+.tone-teal { --tone-bg: var(--teal-bg); --tone-fg: var(--teal-fg); }
+.tone-orange { --tone-bg: var(--orange-bg); --tone-fg: var(--orange-fg); }
+.tone-slate { --tone-bg: var(--slate-bg); --tone-fg: var(--slate-fg); }
+.tile { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; background: var(--tone-bg); color: var(--tone-fg); flex: none; }
+.tile .ic { width: 23px; height: 23px; }
+.tile.sm { width: 34px; height: 34px; border-radius: 10px; }
+.tile.sm .ic { width: 18px; height: 18px; }
+.htitle { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.hrow { display: flex; align-items: center; gap: 8px; }
+.hrow > .ic { color: var(--accent); }
+
 /* masthead */
 .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--mast); color: var(--mast-ink); }
 .top-in { display: grid; gap: 4px; padding-block: 12px 0; }
@@ -85,8 +122,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .b2 { font-size: 12px; color: var(--mast-muted); }
 nav { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; margin-inline: -4px; }
 nav::-webkit-scrollbar { display: none; }
-.navbtn { border: 0; background: none; padding: 10px 12px 10px; cursor: pointer; color: var(--mast-muted); font-family: var(--f-display); font-weight: 650; font-size: 13.5px; letter-spacing: .01em; white-space: nowrap; border-bottom: 3px solid transparent; }
+.navbtn { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; padding: 10px 12px 10px; cursor: pointer; color: var(--mast-muted); font-family: var(--f-display); font-weight: 650; font-size: 13.5px; letter-spacing: .01em; white-space: nowrap; border-bottom: 3px solid transparent; }
 .navbtn:hover { color: var(--mast-ink); }
+.navbtn .ic { width: 16px; height: 16px; }
+.navbtn[aria-current="page"] .ic { color: var(--accent-bright); }
 .navbtn[aria-current="page"] { color: var(--mast-ink); border-bottom-color: var(--accent-bright); }
 .navbtn .cnt { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--accent-bright); color: var(--mast); font-size: 11px; font-weight: 750; }
 .modechip { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--mast-line); color: var(--mast-muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
@@ -121,7 +160,9 @@ main { padding-block: 28px 72px; display: grid; gap: 22px; }
 
 /* figures strip */
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
-.stat { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; }
+.stat { background: var(--surface); padding: 14px 16px; display: grid; gap: 4px; }
+.stat .label { display: flex; align-items: center; gap: 7px; }
+.stat .label .ic { width: 16px; height: 16px; color: var(--tone-fg, var(--faint)); }
 .stat .v { font-family: var(--f-mono); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
 .stat .v small { font-size: 14px; color: var(--muted); font-weight: 400; }
 .stat.attn .v { color: var(--warn); }
@@ -147,6 +188,9 @@ main { padding-block: 28px 72px; display: grid; gap: 22px; }
 .chip.ok { background: var(--ok-soft); color: var(--ok); }
 .chip.accent { background: var(--accent-soft); color: var(--accent); }
 .chip.line { background: none; border: 1px solid var(--line); }
+.chip { display: inline-flex; align-items: center; gap: 4px; }
+.chip .ic { width: 13px; height: 13px; }
+.chip.tone { background: var(--tone-bg); color: var(--tone-fg); }
 
 /* department mix */
 .mix { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; align-items: end; }
@@ -184,7 +228,7 @@ tr.grouprow td { background: var(--sunken); font-family: var(--f-display); font-
 .fact .v { font-family: var(--f-mono); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .fact .v.t { font-family: var(--f-body); font-size: 15px; font-weight: 700; padding-top: 4px; }
 .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
-.tab { border: 0; background: none; padding: 10px 14px; cursor: pointer; font-family: var(--f-display); font-weight: 650; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.tab { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; padding: 10px 14px; cursor: pointer; font-family: var(--f-display); font-weight: 650; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
 .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
 
 .checks { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
@@ -258,7 +302,8 @@ details > summary { cursor: pointer; font-weight: 700; color: var(--accent); }
 .dayhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding-bottom: 2px; }
 .dayhead .d { font-family: var(--f-display); font-weight: 750; font-stretch: 108%; font-size: 15px; }
 .dayhead .btn { margin-left: auto; }
-.casecard { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; cursor: pointer; text-align: left; width: 100%; }
+.casecard { position: relative; overflow: hidden; display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px 14px 20px; cursor: pointer; text-align: left; width: 100%; }
+.casecard::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--tone-fg, var(--line)); }
 .casecard:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
 .ctime { display: grid; gap: 2px; align-content: start; }
 .ctime .t { font-family: var(--f-mono); font-size: 14px; font-weight: 600; }
@@ -269,9 +314,32 @@ details > summary { cursor: pointer; font-weight: 700; color: var(--accent); }
 .tm .steps { color: var(--muted); }
 .cstate { display: grid; gap: 6px; justify-items: end; align-content: start; }
 .role { font-family: var(--f-display); font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--faint); }
-.role.performs, .role.closes { color: var(--accent); }
+.role.performs, .role.closes { color: var(--teal-fg); }
+.role.backup { color: var(--violet-fg); }
+.role.assists { color: var(--blue-fg); }
 .att-bad { color: var(--hold); font-weight: 700; font-size: 12px; }
 .att-mid { color: var(--warn); font-weight: 700; font-size: 12px; }
+
+/* phone tab bar, like the other apps */
+.tabbar { display: none; }
+.tabbtn { position: relative; display: grid; justify-items: center; gap: 2px; border: 0; background: none; padding: 4px 2px 2px; cursor: pointer; color: var(--muted); font-family: var(--f-display); font-weight: 650; font-size: 11px; }
+.tabbtn .pip { width: 52px; height: 30px; border-radius: 15px; display: grid; place-items: center; }
+.tabbtn .pip .ic { width: 21px; height: 21px; }
+.tabbtn[aria-current="page"] { color: var(--ink); }
+.tabbtn[aria-current="page"] .pip { background: var(--tone-bg); color: var(--tone-fg); }
+.tabbtn .cnt { position: absolute; top: 0; right: calc(50% - 26px); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--hold); color: var(--surface); font-size: 10.5px; font-weight: 750; display: grid; place-items: center; }
+.morelist { display: grid; gap: 6px; }
+.moreitem { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; text-align: left; font-family: var(--f-display); font-weight: 700; font-size: 15px; width: 100%; }
+.moreitem:hover { border-color: var(--faint); }
+@media (max-width: 680px) {
+  nav { display: none; }
+  .top-in { padding-block: 10px; }
+  .tabbar { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 15; background: var(--surface); border-top: 1px solid var(--line);
+    padding: 6px max(6px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px)); }
+  main { padding-bottom: 104px; }
+  .toast { bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+  .tile { width: 40px; height: 40px; }
+}
 
 /* planning */
 .plan { display: grid; gap: 10px; }
@@ -475,6 +543,53 @@ const LISTS = ["Sunday list", "Wednesday list", "Saturday list", "Extra list"];
 /* A test copy runs the same code against its own database, so changes can be tried before the real tracker gets them. */
 const TEST_COPY = false;
 
+/* ---------- icons ---------- */
+const ICONS = {
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  scale: '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
+  clipboardCheck: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+  clipboardList: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+  book: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  sliders: '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
+  layers: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
+  zap: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  chevL: '<path d="m15 18-6-6 6-6"/>',
+  chevR: '<path d="m9 18 6-6-6-6"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  alert: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/>',
+  award: '<circle cx="12" cy="8" r="6"/><path d="M15.48 12.89 17 22l-5-3-5 3 1.52-9.11"/>',
+  trending: '<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>',
+  userCheck: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m16 11 2 2 4-4"/>',
+  userX: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 8 5 5M22 8l-5 5"/>',
+  shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+  cap: '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
+  message: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  more: '<circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/>',
+  pencil: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+};
+const ic = (name, cls) => `<svg class="ic ${cls || ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
+/* Each section has its own icon and colour, used for its page title and in the phone tab bar. */
+const SECTIONS = {
+  roster: { label: "Residents", icon: "users", tone: "blue", eyebrow: "Program" },
+  theatre: { label: "Theatre", icon: "activity", tone: "teal", eyebrow: "Operating theatre" },
+  rota: { label: "On-call rota", short: "Rota", icon: "calendar", tone: "violet", eyebrow: "Emergency teams" },
+  fair: { label: "Fairness", icon: "scale", tone: "amber", eyebrow: "Last " + RULE.offenceDays + " days" },
+  scoring: { label: "Monthly scoring", short: "Scoring", icon: "clipboardCheck", tone: "green", eyebrow: "Each month" },
+  rules: { label: "Program rules", short: "Rules", icon: "book", tone: "slate", eyebrow: "Reference" },
+  settings: { label: "Settings", icon: "sliders", tone: "slate", eyebrow: "Program" },
+  baseline: { label: "Surgical starting levels", icon: "layers", tone: "orange", eyebrow: "Launch" },
+};
+const htitle = k => { const s = SECTIONS[k]; return `<div class="htitle"><span class="tile tone-${s.tone}">${ic(s.icon)}</span><div class="stack" style="gap:2px"><span class="eyebrow">${s.eyebrow}</span><h1>${s.label}</h1></div></div>`; };
+
 /* ---------- helpers ---------- */
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const clone = o => JSON.parse(JSON.stringify(o ?? {}));
@@ -534,6 +649,9 @@ let CACHE = {};
 const invalidate = () => { CACHE = {}; };
 const cats = () => CATS_BUILTIN.concat(S.settings.categories || []);
 const catOf = id => cats().find(c => c.id === id) || CATS_BUILTIN[2];
+const CAT_TONES = { em: "rose", el: "blue", adv: "violet" }, CUSTOM_TONES = ["teal", "orange", "green", "amber"];
+const catTone = id => CAT_TONES[id] || CUSTOM_TONES[Math.max(0, (S.settings.categories || []).findIndex(c => c.id === id)) % CUSTOM_TONES.length];
+const catChip = id => `<span class="chip tone tone-${catTone(id)}">${esc(catOf(id).name)}</span>`;
 
 /* steps: built-in counters plus the program's own steps added from the case library */
 function stepDef(k) {
@@ -665,8 +783,8 @@ function reliability(id) {
   const state = offender ? "offender" : unx || (rate != null && rate < 0.8) ? "watch" : reliable ? "reliable" : assigned ? "good" : "none";
   return (CACHE[key] = { on, late, unx, exc, covers, assigned, rate, sat, steps: steps.length, satRate: steps.length ? sat / steps.length : null, offender, reliable, state });
 }
-const REL_CHIP = { offender: ["hold", "Repeated no-shows"], watch: ["warn", "Watch attendance"], reliable: ["ok", "Reliable"], good: ["", "Good standing"], none: ["line", "No cases yet"] };
-const relChip = id => { const [c, t] = REL_CHIP[reliability(id).state]; return `<span class="chip ${c}">${t}</span>`; };
+const REL_CHIP = { offender: ["hold", "Repeated no-shows", "alert"], watch: ["warn", "Watch attendance", "clock"], reliable: ["ok", "Reliable", "award"], good: ["", "Good standing", "check"], none: ["line", "No cases yet", ""] };
+const relChip = id => { const [c, t, i] = REL_CHIP[reliability(id).state]; return `<span class="chip ${c}">${i ? ic(i) : ""}${t}</span>`; };
 
 /* ---------- progression engine ---------- */
 function startOf(res) { return validYM(res.start) ? res.start : ymAdd((res.baseline && res.baseline.month) || ymNow(), -60); }
@@ -1037,7 +1155,7 @@ function statusChips(res, E) {
   if (E.unscored) c.push(`<span class="chip warn">${E.unscored} month${E.unscored > 1 ? "s" : ""} unscored</span>`);
   if (surg(res).overdue.length) c.push(`<span class="chip warn">Surgical remediation</span>`);
   if (E.rewardExcluded) c.push(`<span class="chip warn">No reward-pool cases</span>`);
-  if (E.boost) c.push(`<span class="chip accent">Boost</span>`);
+  if (E.boost) c.push(`<span class="chip accent">${ic("zap")}Boost</span>`);
   return c.join("");
 }
 
@@ -1129,13 +1247,15 @@ function render() {
 function toReviewCount() { const t = todayISO(); return allCases().filter(c => caseStatus(c) === "planned" && c.date <= t).length; }
 function topBar() {
   const due = toReviewCount();
-  const nav = [["roster", "Residents"], ["theatre", "Theatre", due], ["rota", "On-call rota"], ["fair", "Fairness"], ["scoring", "Monthly scoring"], ["rules", "Program rules"], ["settings", "Settings"]];
+  const nav = [["roster", due && 0], ["theatre", due], ["rota"], ["fair"], ["scoring"], ["rules"], ["settings"]];
   const cur = S.view === "resident" ? "roster" : S.view === "baseline" ? "roster" : S.view;
   const chip = S.mode === "live" ? `<span class="modechip live"><span class="dot"></span>Shared${S.canEdit ? "" : " · view only"}</span>` : S.mode === "loading" ? `<span class="modechip"><span class="dot"></span>Connecting</span>` : `<span class="modechip"><span class="dot"></span>Not saved</span>`;
   return `<header class="top"><div class="wrap top-in">
     <div class="toprow"><div class="brand">${logo()}<div><div class="b1">Neurosurgery Residency</div><div class="b2">${TEST_COPY ? "Test copy, not the real tracker" : "Progression and theatre tracker"}</div></div></div>${chip}</div>
-    <nav aria-label="Sections">${nav.map(([k, l, n]) => `<button class="navbtn" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}>${l}${n ? `<span class="cnt" aria-label="${n} to review">${n}</span>` : ""}</button>`).join("")}</nav>
-  </div></header>`;
+    <nav aria-label="Sections">${nav.map(([k, n]) => `<button class="navbtn" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}>${ic(SECTIONS[k].icon)}${SECTIONS[k].label}${n ? `<span class="cnt" aria-label="${n} to review">${n}</span>` : ""}</button>`).join("")}</nav>
+  </div></header>
+  <nav class="tabbar" aria-label="Sections">${["roster", "theatre", "rota", "fair"].map(k => `<button class="tabbtn tone-${SECTIONS[k].tone}" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}><span class="pip">${ic(SECTIONS[k].icon)}</span>${SECTIONS[k].short || SECTIONS[k].label}${k === "theatre" && due ? `<span class="cnt" aria-label="${due} to review">${due}</span>` : ""}</button>`).join("")}
+    <button class="tabbtn tone-slate" data-act="more" ${["scoring", "rules", "settings"].includes(cur) ? 'aria-current="page"' : ""}><span class="pip">${ic("more")}</span>More</button></nav>`;
 }
 function logo() {
   const bars = LEVELS.map((_, i) => `<rect x="${2 + i * 4.3}" y="${26 - (i + 1) * 3.2}" width="3.2" height="${(i + 1) * 3.2}" rx="1" fill="var(--l${i})"/>`).join("");
@@ -1157,11 +1277,11 @@ function sortedIds() {
 }
 function rosterView() {
   const ids = sortedIds(), can = S.canEdit;
-  const actions = can ? `<button class="btn" data-act="nav" data-v="baseline">Surgical starting levels</button><button class="btn" data-act="import">Import a list</button><button class="btn primary" data-act="add">Add resident</button>` : "";
-  if (S.mode === "loading") return `<div class="head"><div><span class="eyebrow">Program</span><h1>Residents</h1></div></div><div class="card empty"><p class="muted">Loading the department's residents…</p></div>`;
-  if (!ids.length) return `<div class="head"><div><span class="eyebrow">Program</span><h1>Residents</h1></div><div class="actions">${actions}</div></div>
+  const actions = can ? `<button class="btn" data-act="nav" data-v="baseline">${ic("layers")}Surgical starting levels</button><button class="btn" data-act="import">${ic("fileText")}Import a list</button><button class="btn primary" data-act="add">${ic("plus")}Add resident</button>` : "";
+  if (S.mode === "loading") return `<div class="head"><div>${htitle("roster")}</div></div><div class="card empty"><p class="muted">Loading the department's residents…</p></div>`;
+  if (!ids.length) return `<div class="head"><div>${htitle("roster")}</div><div class="actions">${actions}</div></div>
     <div class="card empty"><h2>Add the department's residents</h2><p class="muted">For each resident, enter when they started and the level they hold now. The tracker takes it from there.</p>
-    ${can ? `<div class="row"><button class="btn primary" data-act="add">Add resident</button><button class="btn" data-act="import">Import a list</button></div>` : `<p class="muted">You have view access. Ask the program director for edit access.</p>`}</div>`;
+    ${can ? `<div class="row"><button class="btn primary" data-act="add">${ic("plus")}Add resident</button><button class="btn" data-act="import">${ic("fileText")}Import a list</button></div>` : `<p class="muted">You have view access. Ask the program director for edit access.</p>`}</div>`;
   const counts = LEVELS.map((_, i) => ids.filter(id => run(S.residents[id]).level === i).length);
   const max = Math.max(1, ...counts);
   const lastYM = ymAdd(ymNow(), -1);
@@ -1171,7 +1291,7 @@ function rosterView() {
   const shown = ids.filter(id => !ql || String(S.residents[id].name).toLowerCase().includes(ql));
   const holds = ids.filter(id => run(S.residents[id]).holdNow).length;
   const noBase = ids.filter(id => !Object.keys(S.residents[id].stepBase || {}).some(k => (S.residents[id].stepBase || {})[k])).length;
-  return `<div class="head"><div><span class="eyebrow">Program</span><h1>Residents</h1><p class="muted">${ids.length} in the program${holds ? ` · ${holds} on hold` : ""}</p></div><div class="actions">${actions}</div></div>
+  return `<div class="head"><div>${htitle("roster")}<p class="muted">${ids.length} in the program${holds ? ` · ${holds} on hold` : ""}</p></div><div class="actions">${actions}</div></div>
   ${can && noBase === ids.length ? `<div class="note warn">No surgical starting levels are set yet, so every resident starts each ladder from step 1. <button class="linkbtn" data-act="nav" data-v="baseline">Set them by tapping through the grid</button>.</div>` : ""}
   <div class="grid2">
     <div class="card stack"><div class="label">Department mix by duty level</div>
@@ -1196,10 +1316,10 @@ function rosterView() {
 
 function residentView() {
   const res = S.residents[S.rid], E = run(res), rel = reliability(S.rid);
-  const tabs = [["progress", "Progress"], ["scores", "Monthly scores"], ["reqs", "Requirements"], ["exams", "Exams"], ["surgery", "Surgical ladders"], ["theatre", "Theatre record"], ["profile", "Profile"]];
+  const tabs = [["progress", "Progress", "trending"], ["scores", "Monthly scores", "clipboardCheck"], ["reqs", "Requirements", "check"], ["exams", "Exams", "cap"], ["surgery", "Surgical ladders", "layers"], ["theatre", "Theatre record", "activity"], ["profile", "Profile", "users"]];
   const body = { progress: tabProgress, scores: tabScores, reqs: tabReqs, exams: tabExams, surgery: tabSurgery, theatre: tabTheatre, profile: tabProfile }[S.tab] || tabProgress;
   const ar = arName(S.rid);
-  return `<div class="rhead"><button class="btn ghost back" data-act="nav" data-v="roster">← All residents</button>
+  return `<div class="rhead"><button class="btn ghost back" data-act="nav" data-v="roster">${ic("chevL")}All residents</button>
     <div class="rtitle">${avatar(S.rid, "lg")}<div class="stack" style="gap:4px"><h1>${esc(res.name)}</h1><div class="row" style="gap:8px">${pillName(E.level)}${ar ? `<span class="muted" dir="rtl" lang="ar">${esc(ar)}</span>` : ""}</div></div><div class="chips">${statusChips(res, E)}</div></div>
     <div class="facts">
       <div class="fact"><div class="label">Month in program</div><div class="v">${res.start ? (E.i >= 1 ? E.i : "–") : esc(res.startNote || "–")}</div></div>
@@ -1209,7 +1329,7 @@ function residentView() {
       <div class="fact"><div class="label">Theatre attendance</div><div class="v">${pct(rel.rate)}</div></div>
       <div class="fact"><div class="label">On call</div><div class="v t">${esc(LEVELS[E.level].calls)}</div></div>
     </div></div>
-  <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button class="tab" role="tab" data-act="tab" data-v="${k}" aria-selected="${S.tab === k}">${l}</button>`).join("")}</div>
+  <div class="tabs" role="tablist">${tabs.map(([k, l, i]) => `<button class="tab" role="tab" data-act="tab" data-v="${k}" aria-selected="${S.tab === k}">${ic(i)}${l}</button>`).join("")}</div>
   ${body(res, E)}`;
 }
 function checkList(items) {
@@ -1238,7 +1358,7 @@ function tabProgress(res, E) {
   if (E.unscored) flags.push(`<div class="note warn">${E.unscored} completed month${E.unscored > 1 ? "s have" : " has"} no score. Unscored months add no points. <button class="linkbtn" data-act="tab" data-v="scores">Score them</button></div>`);
   return `<div class="grid2"><div class="card stack"><h2>${esc(ns.title)}</h2><p class="muted">${esc(ns.sub)}</p>${checkList(ns.items)}
       ${ns.early ? `<div class="stack" style="margin-top:6px;padding-top:12px;border-top:1px solid var(--line)"><h3>${esc(ns.early.title)}</h3><p class="small muted">Reduces on-call days without changing rank.</p>${checkList(ns.early.items)}</div>` : ""}</div>
-    <div class="card stack"><h2>Level ladder</h2><div class="ladder">${ladder}</div></div></div>
+    <div class="card stack"><h2 class="hrow">${ic("layers")}Level ladder</h2><div class="ladder">${ladder}</div></div></div>
   ${flags.length ? `<div class="stack">${flags.join("")}</div>` : ""}`;
 }
 function tabScores(res, E) {
@@ -1333,11 +1453,11 @@ function tabTheatre(res) {
     return `<tr class="click" data-act="case-open" data-id="${c.id}" tabindex="0"><td class="num">${dateLabel(c.date)}</td><td><div class="rname">${esc(caseTitle(c))}</div><span class="small muted">${esc(catOf(c.cat).name)}</span></td><td>${esc(a)}</td><td class="small">${esc(did.join(", ") || (t && t.steps && t.steps.length ? "Assigned: " + stepList(t.steps) : "–"))}</td></tr>`;
   };
   return `<div class="stats">
-    <div class="stat"><span class="label">Attendance, ${RULE.offenceDays} days</span><span class="v">${pct(rel.rate)}</span></div>
-    <div class="stat"><span class="label">Late</span><span class="v">${rel.late}</span></div>
-    <div class="stat ${rel.unx ? "attn" : ""}"><span class="label">No-shows</span><span class="v">${rel.unx}</span></div>
-    <div class="stat"><span class="label">Covers</span><span class="v">${rel.covers}</span></div>
-    <div class="stat"><span class="label">Steps, satisfactory</span><span class="v">${rel.sat}<small> / ${rel.steps}</small></span></div>
+    <div class="stat tone-green"><span class="label">${ic("userCheck")}Attendance, ${RULE.offenceDays} days</span><span class="v">${pct(rel.rate)}</span></div>
+    <div class="stat tone-amber"><span class="label">${ic("clock")}Late</span><span class="v">${rel.late}</span></div>
+    <div class="stat tone-rose ${rel.unx ? "attn" : ""}"><span class="label">${ic("userX")}No-shows</span><span class="v">${rel.unx}</span></div>
+    <div class="stat tone-violet"><span class="label">${ic("shield")}Covers</span><span class="v">${rel.covers}</span></div>
+    <div class="stat tone-teal"><span class="label">${ic("target")}Steps, satisfactory</span><span class="v">${rel.sat}<small> / ${rel.steps}</small></span></div>
   </div>
   <div class="row">${relChip(id)}<span class="small muted">${rel.offender ? `Repeated unexcused absences: they lose fairness ties and get no spare places.` : rel.reliable ? `Reliable: +${RULE.wReliable} priority for spare places.` : `Reliable means ${RULE.reliableMin}+ cases, ${pct(RULE.reliableRate)} attendance and no unexcused absence in ${RULE.offenceDays} days.`}</span></div>
   ${mine.length ? `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Case</th><th>Attendance</th><th>Steps</th></tr></thead><tbody>${mine.map(row).join("")}</tbody></table></div>` : `<div class="card"><p class="muted">No theatre cases recorded yet.</p></div>`}`;
@@ -1353,16 +1473,16 @@ function tabProfile(res, E) {
     </div>
     ${res.notes ? `<div><div class="label">Notes</div><p style="white-space:pre-wrap">${esc(res.notes)}</p></div>` : ""}
     ${S.canEdit ? `<div class="row"><button class="btn" data-act="edit">Edit profile</button><button class="btn danger" data-act="delete">Delete resident</button></div>` : ""}</div>
-  <div class="card stack"><h2>Upgrade history</h2>${E.history.length ? `<ul class="checks">${E.history.map(h => `<li><span class="tick ok">✓</span><span>${pill(h.to)} ${esc(LEVELS[h.to].name)} from ${ymLabel(ymAdd(h.ym, 1))}<br><span class="small muted">${esc(h.reason)}</span></span></li>`).join("")}</ul>` : `<p class="muted">No upgrades since tracking began.</p>`}</div></div>`;
+  <div class="card stack"><h2 class="hrow">${ic("trending")}Upgrade history</h2>${E.history.length ? `<ul class="checks">${E.history.map(h => `<li><span class="tick ok">✓</span><span>${pill(h.to)} ${esc(LEVELS[h.to].name)} from ${ymLabel(ymAdd(h.ym, 1))}<br><span class="small muted">${esc(h.reason)}</span></span></li>`).join("")}</ul>` : `<p class="muted">No upgrades since tracking began.</p>`}</div></div>`;
 }
 
 function scoringView() {
   const ym = S.scoreYM, ids = sortedIds(), nowYM = ymNow();
   const rows = ids.map(id => ({ id, r: S.residents[id], row: run(S.residents[id]).rows.find(x => x.ym === ym) }));
   const tracked = rows.filter(x => x.row), done = tracked.filter(x => x.row.sc);
-  return `<div class="head"><div><span class="eyebrow">Each month</span><h1>Monthly scoring</h1><p class="muted">Duties from the coordinator's recorded misses, behavior from same-day event records and the theatre reviews, surgery from the case log.</p></div></div>
-  <div class="row"><button class="btn sm" data-act="ym" data-k="scoreYM" data-d="-1" aria-label="Previous month">←</button><h2 style="min-width:120px;text-align:center">${ymLabel(ym)}</h2>
-    <button class="btn sm" data-act="ym" data-k="scoreYM" data-d="1" aria-label="Next month" ${ym >= nowYM ? "disabled" : ""}>→</button>
+  return `<div class="head"><div>${htitle("scoring")}<p class="muted">Duties from the coordinator's recorded misses, behavior from same-day event records and the theatre reviews, surgery from the case log.</p></div></div>
+  <div class="row"><button class="btn sm" data-act="ym" data-k="scoreYM" data-d="-1" aria-label="Previous month">${ic("chevL")}</button><h2 style="min-width:120px;text-align:center">${ymLabel(ym)}</h2>
+    <button class="btn sm" data-act="ym" data-k="scoreYM" data-d="1" aria-label="Next month" ${ym >= nowYM ? "disabled" : ""}>${ic("chevR")}</button>
     <span class="chip ${done.length === tracked.length && tracked.length ? "ok" : "warn"}">${done.length} of ${tracked.length} scored</span>${ym === nowYM ? `<span class="chip">Month in progress</span>` : ""}</div>
   ${!ids.length ? `<div class="card empty"><p class="muted">Add residents first.</p></div>` : `<div class="tablewrap"><table><thead><tr><th>Resident</th><th>Level that month</th><th class="r">Duties</th><th class="r">Behavior</th><th class="r">Surgery</th><th class="r">Total</th><th>Status</th><th></th></tr></thead>
   <tbody>${rows.map(({ id, r, row }) => {
@@ -1387,24 +1507,25 @@ function teamLines(c) {
 }
 function statusChip(c) {
   const st = caseStatus(c);
-  if (st === "done") return `<span class="chip ok">Reviewed</span>`;
-  if (st === "postponed") return `<span class="chip">Postponed${c.movedTo ? " to " + dateLabel(c.movedTo) : ""}</span>`;
-  if (st === "cancelled") return `<span class="chip">Cancelled</span>`;
-  return c.date <= todayISO() ? `<span class="chip warn">Review now</span>` : `<span class="chip accent">Planned</span>`;
+  if (st === "done") return `<span class="chip ok">${ic("check")}Reviewed</span>`;
+  if (st === "postponed") return `<span class="chip">${ic("clock")}Postponed${c.movedTo ? " to " + dateLabel(c.movedTo) : ""}</span>`;
+  if (st === "cancelled") return `<span class="chip">${ic("x")}Cancelled</span>`;
+  return c.date <= todayISO() ? `<span class="chip warn">${ic("pencil")}Review now</span>` : `<span class="chip accent">${ic("calendar")}Planned</span>`;
 }
+const caseTone = c => { const st = caseStatus(c); return st === "done" ? "green" : st === "planned" ? (c.date <= todayISO() ? "amber" : "blue") : "slate"; };
 function caseCard(c) {
   const when = c.kind === "elective" ? (c.list || "Elective").replace(/ list$/, "") : (c.time || "ER");
-  return `<div class="casecard" data-act="case-open" data-id="${c.id}" role="button" tabindex="0">
+  return `<div class="casecard tone-${caseTone(c)}" data-act="case-open" data-id="${c.id}" role="button" tabindex="0">
     <div class="ctime"><span class="t">${esc(when)}</span><span class="label">${c.kind === "elective" ? "List" : "Emergency"}</span></div>
     <div style="min-width:0"><div class="ctitle">${esc(caseTitle(c))}</div>
-      <div class="cmeta"><span class="chip line">${esc(catOf(c.cat).name)}</span>${c.specialist ? `<span>${esc(c.specialist)}</span>` : ""}${c.fileNo ? `<span class="mono">File ${esc(c.fileNo)}</span>` : ""}</div>
+      <div class="cmeta">${catChip(c.cat)}${c.specialist ? `<span>${esc(c.specialist)}</span>` : ""}${c.fileNo ? `<span class="mono">File ${esc(c.fileNo)}</span>` : ""}</div>
       <div class="cteam">${teamLines(c) || `<span class="small muted">No team.</span>`}</div></div>
     <div class="cstate">${statusChip(c)}</div></div>`;
 }
 function theatreView() {
-  const tabs = `<div class="tabs" role="tablist">${[["cases", "Cases"], ["library", "Case library"]].map(([k, l]) => `<button class="tab" role="tab" data-act="ttab" data-v="${k}" aria-selected="${S.ttab === k}">${l}</button>`).join("")}</div>`;
-  const head = `<div class="head"><div><span class="eyebrow">Operating theatre</span><h1>Theatre</h1><p class="muted">Plan who does which step, then review every case: what was done, who came, and whether each step was really given.</p></div>
-    ${S.canEdit ? `<div class="actions"><button class="btn" data-act="new-em">Emergency case</button><button class="btn primary" data-act="new-list">Elective list</button></div>` : ""}</div>`;
+  const tabs = `<div class="tabs" role="tablist">${[["cases", "Cases", "activity"], ["library", "Case library", "book"]].map(([k, l, i]) => `<button class="tab" role="tab" data-act="ttab" data-v="${k}" aria-selected="${S.ttab === k}">${ic(i)}${l}</button>`).join("")}</div>`;
+  const head = `<div class="head"><div>${htitle("theatre")}<p class="muted">Plan who does which step, then review every case: what was done, who came, and whether each step was really given.</p></div>
+    ${S.canEdit ? `<div class="actions"><button class="btn" data-act="new-em">${ic("zap")}Emergency case</button><button class="btn primary" data-act="new-list">${ic("clipboardList")}Elective list</button></div>` : ""}</div>`;
   if (S.ttab === "library") return head + tabs + libraryView();
   const ym = S.theatreYM, list = allCases().filter(c => c.ym === ym), today = todayISO();
   const due = list.filter(c => caseStatus(c) === "planned" && c.date <= today).length;
@@ -1413,14 +1534,14 @@ function theatreView() {
   const off = list.filter(c => ["postponed", "cancelled"].includes(caseStatus(c))).length;
   const dates = uniq(list.map(c => c.date)).sort().reverse();
   return head + tabs + `
-  <div class="row"><button class="btn sm" data-act="ym" data-k="theatreYM" data-d="-1" aria-label="Previous month">←</button><h2 style="min-width:120px;text-align:center">${ymLabel(ym)}</h2>
-    <button class="btn sm" data-act="ym" data-k="theatreYM" data-d="1" aria-label="Next month" ${ym >= ymAdd(ymNow(), 1) ? "disabled" : ""}>→</button></div>
-  <div class="stats"><div class="stat ${due ? "attn" : ""}"><span class="label">To review</span><span class="v">${due}</span></div><div class="stat"><span class="label">Coming up</span><span class="v">${upcoming}</span></div>
-    <div class="stat"><span class="label">Reviewed</span><span class="v">${done}</span></div><div class="stat"><span class="label">Postponed or cancelled</span><span class="v">${off}</span></div></div>
-  ${list.length ? `<div class="board">${dates.map(d => `<section class="daygroup"><div class="dayhead"><span class="d">${esc(dayLabel(d))}</span>${d === today ? `<span class="chip accent">Today</span>` : ""}<button class="btn ghost sm" data-act="copy-day" data-v="${d}">Copy for WhatsApp</button></div>
+  <div class="row"><button class="btn sm" data-act="ym" data-k="theatreYM" data-d="-1" aria-label="Previous month">${ic("chevL")}</button><h2 style="min-width:120px;text-align:center">${ymLabel(ym)}</h2>
+    <button class="btn sm" data-act="ym" data-k="theatreYM" data-d="1" aria-label="Next month" ${ym >= ymAdd(ymNow(), 1) ? "disabled" : ""}>${ic("chevR")}</button></div>
+  <div class="stats"><div class="stat tone-amber ${due ? "attn" : ""}"><span class="label">${ic("clock")}To review</span><span class="v">${due}</span></div><div class="stat tone-blue"><span class="label">${ic("calendar")}Coming up</span><span class="v">${upcoming}</span></div>
+    <div class="stat tone-green"><span class="label">${ic("check")}Reviewed</span><span class="v">${done}</span></div><div class="stat tone-slate"><span class="label">${ic("x")}Postponed or cancelled</span><span class="v">${off}</span></div></div>
+  ${list.length ? `<div class="board">${dates.map(d => `<section class="daygroup"><div class="dayhead"><span class="d">${esc(dayLabel(d))}</span>${d === today ? `<span class="chip accent">Today</span>` : ""}<button class="btn ghost sm" data-act="copy-day" data-v="${d}">${ic("message")}Copy for WhatsApp</button></div>
       ${list.filter(c => c.date === d).map(caseCard).join("")}</section>`).join("")}</div>`
   : `<div class="card empty"><h2>No cases in ${ymLabel(ym)}</h2><p class="muted">${S.canEdit ? "Start with an emergency case or an elective list. Type the case name: the tracker remembers its category and steps for next time, takes the team from the on-call rota and splits the steps fairly." : "Cases appear here once the program director plans them."}</p>
-      ${S.canEdit ? `<div class="row"><button class="btn" data-act="new-em">Emergency case</button><button class="btn primary" data-act="new-list">Elective list</button></div>` : ""}</div>`}
+      ${S.canEdit ? `<div class="row"><button class="btn" data-act="new-em">${ic("zap")}Emergency case</button><button class="btn primary" data-act="new-list">${ic("clipboardList")}Elective list</button></div>` : ""}</div>`}
   <p class="small muted">Monthly surgery points count the cases each resident was assigned to and attended. Excused absences, postponed and cancelled cases count for no one. An unexcused absence is recorded as a minor behavior event; covering for an absent colleague earns the cover bonus.</p>`;
 }
 function libraryView() {
@@ -1429,7 +1550,7 @@ function libraryView() {
   const groups = cats().map(ct => ({ ct, items: lib.filter(e => e.cat === ct.id) })).filter(g => g.items.length);
   const orphan = lib.filter(e => !cats().some(ct => ct.id === e.cat));
   if (orphan.length) groups.push({ ct: { id: "", name: "No category" }, items: orphan });
-  return `<div class="row"><p class="muted" style="max-width:70ch">Every case name you type in theatre is kept here with its category and steps, so the same case fills itself in next time. Edit an entry to change what the tracker remembers.</p>${S.canEdit ? `<button class="btn" data-act="lib-new" style="margin-left:auto">Add a case</button>` : ""}</div>
+  return `<div class="row"><p class="muted" style="max-width:70ch">Every case name you type in theatre is kept here with its category and steps, so the same case fills itself in next time. Edit an entry to change what the tracker remembers.</p>${S.canEdit ? `<button class="btn" data-act="lib-new" style="margin-left:auto">${ic("plus")}Add a case</button>` : ""}</div>
   <div class="tablewrap"><table><thead><tr><th>Case</th><th>Ladder</th><th>Steps, in order</th><th class="r">Cases</th>${S.canEdit ? "<th></th>" : ""}</tr></thead><tbody>
   ${groups.map(g => `<tr class="grouprow"><td colspan="${S.canEdit ? 5 : 4}">${esc(g.ct.name)}${g.ct.rule === "advanced" ? ` <span class="small muted">· specialist performs the main steps</span>` : ""}</td></tr>` + g.items.map(e => `<tr>
     <td><div class="rname">${esc(e.name)}</div>${e.aliases.length ? `<span class="small muted">Also: ${esc(e.aliases.join(", "))}</span>` : ""}</td>
@@ -1454,10 +1575,10 @@ function rotaView() {
       ${S.canEdit ? `<button class="btn ghost sm" tabindex="-1">Edit</button>` : ""}</div>`);
   }
   const links = Object.keys(S.settings.aliases || {}).length;
-  return `<div class="head"><div><span class="eyebrow">Emergency teams</span><h1>On-call rota</h1><p class="muted">Emergency cases take their team from this rota, and elective lists skip whoever is post-call. The on-call day starts at ${String(+S.settings.shiftStart || RULE.shiftStart).padStart(2, "0")}:00.</p></div>
-    ${S.canEdit ? `<div class="actions"><button class="btn primary" data-act="rota-paste">Paste a rota</button></div>` : ""}</div>
-  <div class="row"><button class="btn sm" data-act="ym" data-k="rotaYM" data-d="-1" aria-label="Previous month">←</button><h2 style="min-width:120px;text-align:center">${ymLabel(ym)}</h2>
-    <button class="btn sm" data-act="ym" data-k="rotaYM" data-d="1" aria-label="Next month" ${ym >= ymAdd(ymNow(), 2) ? "disabled" : ""}>→</button>
+  return `<div class="head"><div>${htitle("rota")}<p class="muted">Emergency cases take their team from this rota, and elective lists skip whoever is post-call. The on-call day starts at ${String(+S.settings.shiftStart || RULE.shiftStart).padStart(2, "0")}:00.</p></div>
+    ${S.canEdit ? `<div class="actions"><button class="btn primary" data-act="rota-paste">${ic("clipboardList")}Paste a rota</button></div>` : ""}</div>
+  <div class="row"><button class="btn sm" data-act="ym" data-k="rotaYM" data-d="-1" aria-label="Previous month">${ic("chevL")}</button><h2 style="min-width:120px;text-align:center">${ymLabel(ym)}</h2>
+    <button class="btn sm" data-act="ym" data-k="rotaYM" data-d="1" aria-label="Next month" ${ym >= ymAdd(ymNow(), 2) ? "disabled" : ""}>${ic("chevR")}</button>
     <span class="small muted">${links} name link${links === 1 ? "" : "s"} saved · <button class="linkbtn" data-act="nav" data-v="settings">manage</button></span></div>
   ${has ? "" : `<div class="note">No rota for ${ymLabel(ym)} yet. ${S.canEdit ? "Paste the schedule you made with Claude, Arabic names and all. You link each name to a resident once and the tracker remembers it." : ""}</div>`}
   <div class="tablewrap rota">${rows.join("")}</div>`;
@@ -1482,13 +1603,13 @@ function fairView() {
     (c.team || []).forEach(m => { if (!present(attOf(m))) return; (m.steps || []).forEach(k => { const r = (c.out || {})[k]; if (!r || !r.who) return; o.asg++; if (r.who === m.rid) o.given++; else if (r.reason) o.why[r.reason] = (o.why[r.reason] || 0) + 1; }); });
   });
   const specRows = Object.entries(spec).filter(([, o]) => o.asg).sort((a, b) => b[1].asg - a[1].asg);
-  return `<div class="head"><div><span class="eyebrow">Last ${RULE.offenceDays} days</span><h1>Fairness</h1><p class="muted">Who comes, who covers, and who gets the steps. Cases this month are against each level's monthly minimum.</p></div></div>
+  return `<div class="head"><div>${htitle("fair")}<p class="muted">Who comes, who covers, and who gets the steps. Cases this month are against each level's monthly minimum.</p></div></div>
   <div class="grid2">
-    <div class="card stack"><h3>How places are shared</h3><ul class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">
+    <div class="card stack"><h3 class="hrow">${ic("scale")}How places are shared</h3><ul class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">
       <li>Two residents of the same level on one case: the one with fewer turns on their current step goes first.</li>
       <li>That tie goes the other way when the resident behind has ${RULE.offenceLimit} or more unexcused absences in ${RULE.offenceDays} days.</li>
       <li>Postponed cases and steps a specialist kept use nobody's turn. A no-show, or "not ready", uses it.</li></ul></div>
-    <div class="card stack"><h3>Rewards and penalties, applied automatically</h3><ul class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">
+    <div class="card stack"><h3 class="hrow">${ic("award")}Rewards and penalties, applied automatically</h3><ul class="small" style="margin:0;padding-left:18px;display:grid;gap:4px">
       <li>Unexcused absence: a minor behavior event (−${RULE.minor}); three in a month count as a major.</li>
       <li>Covering for an absent colleague: the cover bonus (+${BONUS.cover.pts}, within the ${RULE.bonusCap}-point cap).</li>
       <li>Reliable (${RULE.reliableMin}+ cases, ${pct(RULE.reliableRate)} attendance, no no-shows): +${RULE.wReliable} priority for spare places. Repeated no-shows get no spare places.</li></ul></div>
@@ -1529,7 +1650,7 @@ function baselineView() {
   const lpCell = id => { const n = +S.residents[id].lpBase || 0, list = LP_OPTS.includes(n) ? LP_OPTS : LP_OPTS.concat([n]).sort((a, b) => a - b);
     return `<td><select id="bl-${id}-lp" data-baselp="${id}" aria-label="${esc(nm(id))}, lumbar punctures" ${dis}>${list.map(x => `<option value="${x}" ${x === n ? "selected" : ""}>${x}${x === 30 ? "+" : ""}</option>`).join("")}</select></td>`; };
   const groupRow = g => `<tr class="grouprow"><td>${GROUP_PLURAL[g]}${S.canEdit ? `<div class="small muted" style="font-weight:400">Set the whole group</div>` : ""}</td>${S.canEdit ? BCOLS.map(col => `<td><select id="bg-${g}-${col.p}" data-bgroup="${g}" data-col="${col.p}" aria-label="All ${GROUP_PLURAL[g].toLowerCase()}, ${esc(PROCS[col.p].short)}"><option value="">Set all…</option>${opts(col, -2)}</select></td>`).join("") + `<td><select id="bg-${g}-lp" data-bgrouplp="${g}" aria-label="All ${GROUP_PLURAL[g].toLowerCase()}, lumbar punctures"><option value="">Set all…</option>${LP_OPTS.map(x => `<option value="${x}">${x}</option>`).join("")}</select></td>` : `<td colspan="${BCOLS.length + 1}"></td>`}</tr>`;
-  return `<div class="head"><div><button class="btn ghost back" data-act="nav" data-v="roster">← All residents</button><span class="eyebrow">Launch</span><h1>Surgical starting levels</h1>
+  return `<div class="head"><div><button class="btn ghost back" data-act="nav" data-v="roster">${ic("chevL")}All residents</button>${htitle("baseline")}
     <p class="muted" style="max-width:76ch">Pick how far each resident has got on each ladder today. Choosing a step marks every step before it on that ladder as done. Use the group row to set a whole level at once, then change only the residents who differ.</p></div></div>
   <div class="grid2"><div class="note">Starting levels are <strong>provisional</strong> until the resident performs the step satisfactorily once, or you confirm it on their surgical ladders. They count for planning straight away.</div>
     <div class="note">A step <strong>above the level's ceiling</strong> is recorded but not assigned yet. The ceiling lifts once the starting count plus new satisfactory performances reach ${RULE.liftFactor}× the step's normal count.</div></div>
@@ -1540,9 +1661,9 @@ function baselineView() {
 
 function rulesView() {
   const dutyTable = k => `<table><tbody>${DUTIES[k].map(([t, p]) => `<tr><td>${esc(t)}</td><td class="r num">${p}</td></tr>`).join("")}</tbody></table>`;
-  return `<div class="head"><div><span class="eyebrow">Reference</span><h1>Program rules</h1><p class="muted">The values the tracker uses, from the progression system document.</p></div></div>
+  return `<div class="head"><div>${htitle("rules")}<p class="muted">The values the tracker uses, from the progression system document.</p></div></div>
   <div class="grid2 rules">
-    <div class="card stack"><h2>Levels and timeline</h2><div class="tablewrap"><table><thead><tr><th>Level</th><th>How it is reached</th></tr></thead><tbody>
+    <div class="card stack"><h2 class="hrow">${ic("trending")}Levels and timeline</h2><div class="tablewrap"><table><thead><tr><th>Level</th><th>How it is reached</th></tr></thead><tbody>
       <tr><td>${pillName(0)}</td><td>First month</td></tr><tr><td>${pillName(1)}</td><td>Attached requirements signed off</td></tr>
       <tr><td>${pillName(2)}</td><td>6 months, or 500 points with requirements</td></tr><tr><td>${pillName(3)}</td><td>Early step: 1,500 points with Exam 1</td></tr>
       <tr><td>${pillName(4)}</td><td>18 months with Exam 1 passed</td></tr><tr><td>${pillName(5)}</td><td>Early step: 2,500 points with Exam 2</td></tr>
@@ -1551,9 +1672,9 @@ function rulesView() {
       <h3>Monthly score</h3>
       <ul class="small"><li>Duties 50, behavior 30, surgery 20. A month never scores above 100.</li><li>Each duty line: no misses = full points, 1 or 2 = half, 3 or more = zero.</li><li>Surgery is proportional to assigned cases attended.</li><li>Bonuses: covering a duty +3, extra teaching +2, commendation +2. Capped at 5 a month.</li><li>Minor −3 (three in a month count as a major), major −15 and a 1-month hold, critical all 30 and committee review.</li></ul>
       <h3>Transition</h3><ul class="small"><li>Everyone starts at their current level; no demotion.</li><li>Current midseniors count as having passed Exam 1, current seniors Exam 2.</li><li>Opening points: 80 for each completed month before launch.</li><li>First 2 months: any step within the ceiling completes with two satisfactory performances seen by two different specialists.</li><li>Every senior starts at Senior I; tiers are first reviewed after 6 months of scores.</li></ul></div>
-    <div class="card stack"><h2>Surgical ladders</h2><ul class="small"><li>A step opens once the step before it in that procedure reaches its count. Only satisfactory performances count, from at least two specialists.</li><li>Wound closure, burr holes, skin incision and hemostasis share one counter across emergency cases. Abdominal exposure is shared by ventricular cannulation and TP shunt. A step used by several cases in the library keeps one count.</li><li>Junior ceiling: shared emergency steps, lumbar puncture, elective closure. Midsenior: all basic emergency steps except craniotomy pathology attack and final hemostasis; spine up to hemostasis; TP shunt up to abdominal exposure. Senior: all basic steps and closure on advanced cases.</li><li>Boost (average 90+ over 3 months, no hold): lower counts and one step above the ceiling with the specialist scrubbed.</li><li>Expected: shared emergency steps by 18 months; craniotomy, ventricular and CSDH by 36; spine and TP shunt by 54.</li></ul>
+    <div class="card stack"><h2 class="hrow">${ic("layers")}Surgical ladders</h2><ul class="small"><li>A step opens once the step before it in that procedure reaches its count. Only satisfactory performances count, from at least two specialists.</li><li>Wound closure, burr holes, skin incision and hemostasis share one counter across emergency cases. Abdominal exposure is shared by ventricular cannulation and TP shunt. A step used by several cases in the library keeps one count.</li><li>Junior ceiling: shared emergency steps, lumbar puncture, elective closure. Midsenior: all basic emergency steps except craniotomy pathology attack and final hemostasis; spine up to hemostasis; TP shunt up to abdominal exposure. Senior: all basic steps and closure on advanced cases.</li><li>Boost (average 90+ over 3 months, no hold): lower counts and one step above the ceiling with the specialist scrubbed.</li><li>Expected: shared emergency steps by 18 months; craniotomy, ventricular and CSDH by 36; spine and TP shunt by 54.</li></ul>
       <h3>Senior tiers</h3><ul class="small"><li>Senior II: 6-month average of ${RULE.srII}+, no hold in 6 months.</li><li>Senior III: 6-month average of ${RULE.srIII}+, no hold in 12 months, every basic emergency ladder completed.</li></ul></div>
-    <div class="card stack"><h2>Theatre</h2>
+    <div class="card stack"><h2 class="hrow">${ic("activity")}Theatre</h2>
       <ul class="small"><li>Emergency teams come from the on-call rota; a case before ${String(+S.settings.shiftStart || RULE.shiftStart).padStart(2, "0")}:00 belongs to the previous day's shift.</li>
         <li>Steps go to the lowest on the ladder first; steps above every ceiling go to the specialist.</li>
         <li>Same level on one case: fewer turns on the current step goes first, unless that resident has ${RULE.offenceLimit}+ unexcused absences in ${RULE.offenceDays} days.</li>
@@ -1570,17 +1691,17 @@ function settingsView() {
   const s = S.settings, dis = S.canEdit ? "" : "disabled", can = S.canEdit;
   const aliases = Object.entries(s.aliases || {}).sort((a, b) => nm(a[1].rid).localeCompare(nm(b[1].rid)));
   const custom = Object.entries(s.customSteps || {});
-  return `<div class="head"><div><span class="eyebrow">Program</span><h1>Settings</h1></div></div>
-  <div class="grid2"><div class="card stack"><h2>Specialists</h2><p class="small muted">The names offered when recording who supervised a case. Use the same spelling each time: a count needs performances from two different specialists.</p>
+  return `<div class="head"><div>${htitle("settings")}</div></div>
+  <div class="grid2"><div class="card stack"><h2 class="hrow">${ic("users")}Specialists</h2><p class="small muted">The names offered when recording who supervised a case. Use the same spelling each time: a count needs performances from two different specialists.</p>
     <textarea id="set-specs" rows="8" ${dis} placeholder="One name per line">${esc((s.specialists || []).join("\n"))}</textarea>
     ${can ? `<div><button class="btn primary" data-act="set-specs">Save specialists</button></div>` : ""}</div>
-  <div class="card stack"><h2>Case categories</h2><p class="small muted">Classify cases beyond the three in the program document. "Ladder" splits the steps along the residents' ladders; "Advanced" leaves the main steps to the specialist and gives the closure to a senior or midsenior.</p>
+  <div class="card stack"><h2 class="hrow">${ic("layers")}Case categories</h2><p class="small muted">Classify cases beyond the three in the program document. "Ladder" splits the steps along the residents' ladders; "Advanced" leaves the main steps to the specialist and gives the closure to a senior or midsenior.</p>
     <div class="stack" style="gap:6px">${cats().map(c => `<div class="row"><span class="rname">${esc(c.name)}</span><span class="chip line">${c.rule === "advanced" ? "Advanced" : "Ladder"}</span>${CATS_BUILTIN.includes(c) ? `<span class="small muted">Built in</span>` : can ? `<button class="btn ghost sm" data-act="cat-del" data-id="${c.id}" style="margin-left:auto">Remove</button>` : ""}</div>`).join("")}</div>
     ${can ? `<div class="newstep" style="grid-template-columns:minmax(0,1fr) auto auto"><label class="field"><span>New category</span><input type="text" id="cat-name" placeholder="e.g. Pediatric, Endoscopic"></label><label class="field"><span>Steps</span><select id="cat-rule"><option value="ladder">Ladder</option><option value="advanced">Advanced</option></select></label><button class="btn" data-act="cat-add">Add</button></div>` : ""}</div>
-  <div class="card stack"><h2>Name links</h2><p class="small muted">How names in a pasted rota map to residents. Links are made while pasting; remove one here to link that name again.</p>
+  <div class="card stack"><h2 class="hrow">${ic("link")}Name links</h2><p class="small muted">How names in a pasted rota map to residents. Links are made while pasting; remove one here to link that name again.</p>
     ${aliases.length ? `<div class="tablewrap"><table class="imp-table"><tbody>${aliases.map(([k, a]) => `<tr><td dir="auto">${esc(a.raw || k)}</td><td>${a.rid === "-" ? `<span class="muted">Ignored</span>` : esc(nm(a.rid))}</td>${can ? `<td class="r"><button class="iconbtn" data-act="alias-del" data-k="${esc(k)}" aria-label="Remove link">×</button></td>` : ""}</tr>`).join("")}</tbody></table></div>` : `<p class="muted small">No links yet.</p>`}
     <label class="row small"><input type="checkbox" id="set-copyar" data-set="copyAr" ${s.copyAr !== false ? "checked" : ""} ${dis}> Use the linked Arabic names in copied WhatsApp messages</label></div>
-  <div class="card stack"><h2>Theatre</h2>
+  <div class="card stack"><h2 class="hrow">${ic("activity")}Theatre</h2>
     <label class="field"><span>The on-call day starts at</span><select id="set-shift" data-set="shiftStart" ${dis}>${[6, 7, 8, 9, 10].map(h => `<option value="${h}" ${+s.shiftStart === h ? "selected" : ""}>${String(h).padStart(2, "0")}:00</option>`).join("")}</select></label>
     <p class="small muted">An emergency case starting before this time is given to the previous day's on-call team.</p>
     <h3>Program steps</h3>${custom.length ? `<div class="stack" style="gap:6px">${custom.map(([k, c]) => `<div class="row small"><span class="rname">${esc(c.label)}</span><span class="muted">${c.n} performances · from ${GROUP_NAME[c.min || "S"].toLowerCase()}</span></div>`).join("")}</div>` : `<p class="small muted">Steps you add while describing a new case appear here.</p>`}
@@ -1596,7 +1717,7 @@ function monthSel(field, value) {
 }
 function openModal(m) { S.modal = m; renderModal(); const f = modalRoot.querySelector("input:not([type=hidden]):not([type=checkbox]), select, textarea"); if (f) f.focus(); }
 function closeModal() { S.modal = null; modalRoot.innerHTML = ""; }
-const MODALS = () => ({ score: scoreModal, add: addModal, edit: addModal, import: importModal, exam: examModal, delete: deleteModal, em: emModal, list: listModal, review: reviewModal, tsign: tsignModal, lpbase: lpBaseModal, libedit: libEditModal, rota: rotaPasteModal, rday: rotaDayModal, copy: copyModal });
+const MODALS = () => ({ score: scoreModal, add: addModal, edit: addModal, import: importModal, exam: examModal, delete: deleteModal, em: emModal, list: listModal, review: reviewModal, tsign: tsignModal, lpbase: lpBaseModal, libedit: libEditModal, rota: rotaPasteModal, rday: rotaDayModal, copy: copyModal, more: moreModal });
 function renderModal() {
   const m = S.modal; if (!m) { modalRoot.innerHTML = ""; return; }
   const scrollEl = modalRoot.querySelector(".scrim"), top = scrollEl ? scrollEl.scrollTop : 0;
@@ -1764,6 +1885,10 @@ function lpBaseModal() {
   return `<div class="mhead"><h2>Lumbar punctures before launch</h2></div><div class="mbody"><label class="field"><span>Successful punctures already done</span><input type="number" min="0" id="lpb" data-m="n" value="${esc(S.modal.draft.n)}"></label></div>
   <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="lpb-save">Save</button></div>`;
 }
+function moreModal() {
+  return `<div class="mhead"><h2>More</h2></div><div class="mbody"><div class="morelist">${["scoring", "rules", "settings"].map(k => `<button class="moreitem" data-act="nav" data-v="${k}"><span class="tile sm tone-${SECTIONS[k].tone}">${ic(SECTIONS[k].icon)}</span>${SECTIONS[k].label}</button>`).join("")}</div></div>
+  <div class="mfoot"><button class="btn" data-act="close">Close</button></div>`;
+}
 function copyModal() {
   return `<div class="mhead"><h2>Copy the message</h2><p class="small muted">Copying straight to the clipboard isn't allowed here. Select the text and copy it.</p></div>
   <div class="mbody"><textarea id="copy-text" rows="12" readonly dir="auto">${esc(S.modal.draft.text)}</textarea></div>
@@ -1785,7 +1910,7 @@ function caseEditor(c, i, opts) {
   const mode = opts.lib ? 2 : caseMode(c), hit = c.libId ? libById(c.libId) : null;
   const nameField = `<label class="field"><span>${opts.lib ? "Case name" : "Case"}</span><input type="text" id="ce-${i}-title" data-ce="${i}" data-f="title" ${opts.lib ? "" : `list="lib-list"`} value="${esc(c.title)}" placeholder="Start typing, e.g. lumbar discectomy" autocomplete="off"></label>`;
   if (mode === 0) return `<div class="stack">${nameField}</div>`;
-  if (mode === 1) return `<div class="stack">${nameField}<div class="libhit"><span class="chip ok">From the case library</span><span class="chip line">${esc(catOf(c.cat).name)}</span>${isLP(c) ? "<span>Learner and backup</span>" : `<span class="muted">${esc(stepList(orderedSteps(c)) || "No resident steps")}</span>`}<button class="linkbtn" data-act="ce-edit" data-i="${i}">Change</button></div></div>`;
+  if (mode === 1) return `<div class="stack">${nameField}<div class="libhit"><span class="chip ok">${ic("book")}From the case library</span>${catChip(c.cat)}${isLP(c) ? "<span>Learner and backup</span>" : `<span class="muted">${esc(stepList(orderedSteps(c)) || "No resident steps")}</span>`}<button class="linkbtn" data-act="ce-edit" data-i="${i}">Change</button></div></div>`;
   const ladderSel = `<label class="field"><span>Ladder</span><select id="ce-${i}-ladder" data-ce="${i}" data-f="ladder"><option value="">None: use the steps' own order</option>${CASE_LADDERS.map(p => `<option value="${p}" ${c.ladder === p ? "selected" : ""}>${esc(PROCS[p].name)}</option>`).join("")}</select></label>`;
   const catSel = `<label class="field"><span>Category</span><select id="ce-${i}-cat" data-ce="${i}" data-f="cat">${cats().map(ct => `<option value="${ct.id}" ${c.cat === ct.id ? "selected" : ""}>${esc(ct.name)}</option>`).join("")}</select></label>`;
   const steps = orderedSteps(c), byLadder = !!(c.ladder && PROCS[c.ladder] && PROCS[c.ladder].steps.length);
@@ -1843,7 +1968,7 @@ function listModal() {
     <div class="stack"><h3>Cases</h3>
       ${d.cases.map((c, k) => `<div class="ce stack"><div class="caserow"><span class="label">Case ${k + 1}</span><button class="btn ghost sm" data-act="ls-del" data-k="${k}">Remove</button></div>${caseEditor(c, k)}
         <div class="fields"><label class="field"><span>Specialist</span><input type="text" list="spec-list" id="ls-${k}-spec" data-lc="${k}" data-f="specialist" value="${esc(c.specialist)}"></label><label class="field"><span>File number (optional)</span><input type="text" id="ls-${k}-file" data-lc="${k}" data-f="fileNo" value="${esc(c.fileNo || "")}"></label></div></div>`).join("") || `<p class="small muted">Add the list's cases.</p>`}
-      <div><button class="btn" data-act="ls-add">+ Add a case</button></div></div>
+      <div><button class="btn" data-act="ls-add">${ic("plus")}Add a case</button></div></div>
     <div class="field"><span>On leave or post-call (skipped)</span>${post.length ? `<p class="small muted" style="margin-bottom:6px">On call the night before, so ticked as post-call: ${esc(post.map(nm).join(", "))}.</p>` : ""}${residentPicker(d.away, "away", id => run(S.residents[id]).level >= 1)}</div>
     ${plans.length ? `<div class="stack"><h3>Assignment</h3><div class="plan">${plans.map((p, k) => planHTML(p, d.cases[k])).join("")}</div></div>` : ""}${errLine()}</div>
   <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="ls-save" ${plans.length ? "" : "disabled"}>Save list</button></div>`;
@@ -1902,9 +2027,9 @@ function reviewModal() {
       <div class="stack" style="gap:0"><h3>What was done</h3><p class="small muted" style="margin-bottom:4px">Confirm who actually did each step. Only satisfactory performances count toward a step; a step the specialist kept uses nobody's turn.</p>${steps}</div>
       <label class="field"><span>Note (optional)</span><input type="text" id="rv-note" data-m="note" value="${esc(d.note || "")}"></label>`;
   }
-  return `<div class="mhead"><span class="label">${esc(dayLabel(d.date))}${d.time ? " · " + esc(d.time) : ""} · ${d.kind === "elective" ? esc(d.list || "Elective") : "Emergency"}</span><h2>${esc(caseTitle(d))}</h2><div class="row"><span class="chip line">${esc(catOf(d.cat).name)}</span>${d.fileNo ? `<span class="small muted mono">File ${esc(d.fileNo)}</span>` : ""}</div></div>
+  return `<div class="mhead"><span class="label">${esc(dayLabel(d.date))}${d.time ? " · " + esc(d.time) : ""} · ${d.kind === "elective" ? esc(d.list || "Elective") : "Emergency"}</span><h2>${esc(caseTitle(d))}</h2><div class="row">${catChip(d.cat)}${d.fileNo ? `<span class="small muted mono">File ${esc(d.fileNo)}</span>` : ""}</div></div>
   <div class="mbody"><div class="stack" style="gap:8px"><h3>What happened to this case?</h3>${seg}</div>${body}${errLine()}</div>
-  <div class="mfoot">${S.canEdit ? `<button class="btn danger left" data-act="rv-del">Delete case</button>` : ""}<button class="btn" data-act="rv-copy">Copy for WhatsApp</button><button class="btn" data-act="close">${S.canEdit ? "Cancel" : "Close"}</button>${S.canEdit ? `<button class="btn primary" data-act="rv-save">Save review</button>` : ""}</div>`;
+  <div class="mfoot">${S.canEdit ? `<button class="btn danger left" data-act="rv-del">Delete case</button>` : ""}<button class="btn" data-act="rv-copy">${ic("message")}Copy for WhatsApp</button><button class="btn" data-act="close">${S.canEdit ? "Cancel" : "Close"}</button>${S.canEdit ? `<button class="btn primary" data-act="rv-save">Save review</button>` : ""}</div>`;
 }
 async function saveReview() {
   const m = S.modal, d = m.draft;
@@ -2064,6 +2189,7 @@ document.addEventListener("click", async e => {
     case "open": S.view = "resident"; S.rid = el.dataset.id; S.tab = "progress"; window.scrollTo(0, 0); render(); break;
     case "open-theatre": S.view = "resident"; S.rid = el.dataset.id; S.tab = "theatre"; window.scrollTo(0, 0); render(); break;
     case "tab": S.tab = el.dataset.v; render(); break;
+    case "more": openModal({ type: "more", draft: {} }); break;
     case "ttab": S.ttab = el.dataset.v; render(); break;
     case "ym": { const k = el.dataset.k, n = ymAdd(S[k], +el.dataset.d), cap = k === "scoreYM" ? ymNow() : k === "theatreYM" ? ymAdd(ymNow(), 1) : ymAdd(ymNow(), 2); if (n <= cap) { S[k] = n; render(); } break; }
     case "add": openAdd(); break;
