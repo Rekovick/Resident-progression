@@ -472,6 +472,9 @@ const NOT_GIVEN = { spec: "Specialist's decision", time: "Short of time", hard: 
 const ROLE_TEXT = { performs: "Performs", observes: "Observes", closes: "Closes", assists: "Assists", backup: "LP backup" };
 const LISTS = ["Sunday list", "Wednesday list", "Saturday list", "Extra list"];
 
+/* A test copy runs the same code against its own database, so changes can be tried before the real tracker gets them. */
+const TEST_COPY = false;
+
 /* ---------- helpers ---------- */
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const clone = o => JSON.parse(JSON.stringify(o ?? {}));
@@ -1130,7 +1133,7 @@ function topBar() {
   const cur = S.view === "resident" ? "roster" : S.view === "baseline" ? "roster" : S.view;
   const chip = S.mode === "live" ? `<span class="modechip live"><span class="dot"></span>Shared${S.canEdit ? "" : " · view only"}</span>` : S.mode === "loading" ? `<span class="modechip"><span class="dot"></span>Connecting</span>` : `<span class="modechip"><span class="dot"></span>Not saved</span>`;
   return `<header class="top"><div class="wrap top-in">
-    <div class="toprow"><div class="brand">${logo()}<div><div class="b1">Neurosurgery Residency</div><div class="b2">Progression and theatre tracker</div></div></div>${chip}</div>
+    <div class="toprow"><div class="brand">${logo()}<div><div class="b1">Neurosurgery Residency</div><div class="b2">${TEST_COPY ? "Test copy, not the real tracker" : "Progression and theatre tracker"}</div></div></div>${chip}</div>
     <nav aria-label="Sections">${nav.map(([k, l, n]) => `<button class="navbtn" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}>${l}${n ? `<span class="cnt" aria-label="${n} to review">${n}</span>` : ""}</button>`).join("")}</nav>
   </div></header>`;
 }
@@ -1140,6 +1143,7 @@ function logo() {
 }
 function banner() {
   const out = [];
+  if (TEST_COPY) out.push(`<div class="banner">Test copy. Records here are separate from the real tracker, so try anything: nothing you do here changes it.</div>`);
   if (S.mode === "offline") out.push(`<div class="banner">This copy is not connected to the shared tracker, so changes stay in this tab and are lost when it closes. Open the tracker from its claude.ai link to save records.</div>`);
   if (S.mode === "live" && inTransition()) out.push(`<div class="note">Transition period (${ymLabel(S.settings.launch)} to ${ymLabel(ymAdd(S.settings.launch, RULE.transitionMonths - 1))}): any step within a resident's ceiling can be completed by two satisfactory performances observed by two different specialists. Set where everyone is now in <button class="linkbtn" data-act="nav" data-v="baseline">Surgical starting levels</button>.</div>`);
   return out.join("");

@@ -18,3 +18,13 @@ A single-page app for the Neurosurgery Residency Progression System. It covers t
 - `settings/program`: launch month, specialists, custom categories and steps, name links for the rota, on-call day start
 
 Anyone the artifact is shared with can view it. Only people with edit access can change records. The program's numbers (thresholds, duty points, deductions, step counts, ceilings, priority weights, fairness and reliability limits) are constants at the top of the script, so they can be recalibrated.
+
+## Test copy
+
+A separate artifact runs the same code with `TEST_COPY = true` and its own database, so changes can be tried before the real tracker gets them. It is built from `index.html` by changing only the title and that flag:
+
+```sh
+sed -e 's|<title>Neurosurgery Residency Tracker</title>|<title>Residency Tracker Test Copy</title>|' \
+    -e 's|^const TEST_COPY = false;|const TEST_COPY = true;|' index.html > test-copy.html
+```
+
