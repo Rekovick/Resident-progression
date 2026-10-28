@@ -19,12 +19,30 @@ A single-page app for the Neurosurgery Residency Progression System. It covers t
 
 Anyone the artifact is shared with can view it. Only people with edit access can change records. The program's numbers (thresholds, duty points, deductions, step counts, ceilings, priority weights, fairness and reliability limits) are constants at the top of the script, so they can be recalibrated.
 
-## Test copy
+## The installable app
 
-A separate artifact runs the same code with `TEST_COPY = true` and its own database, so changes can be tried before the real tracker gets them. It is built from `index.html` by changing only the title and that flag:
+The same code also runs as an installable phone app, set up like Surgery Follow-ups:
+
+- `docs/` is the app, served by GitHub Pages from this branch (`rekovick.github.io/Resident-progression/`). `docs/index.html` is built from `index.html` with `APP_BUILD = true`; `manifest.webmanifest`, `sw.js` and the icons make it installable.
+- `server/Code.gs` is the data server, a Google Apps Script web app. It keeps every record in one Google Sheet in the owner's Drive (the "Docs" tab, one row per record, the same paths as above) and checks a personal access key on every request.
+- Access is by personal link (`?c=` carries the server address and one key):
+  - **owner**: everything, and manages links under Settings, People with access
+  - **trainer** (specialists): reads and changes every record
+  - **resident**: their own record in full, plus the rota, the case library and the theatre cases. The server removes other residents' scores, attendance, step outcomes and reasons before sending.
+- Records move from the claude.ai tracker with Settings, Copy all records, then in the app Settings, Replace all records (owner).
+- Setup steps for the owner are in the launch kit artifact.
+
+Build and check:
 
 ```sh
-sed -e 's|<title>Neurosurgery Residency Tracker</title>|<title>Residency Tracker Test Copy</title>|' \
-    -e 's|^const TEST_COPY = false;|const TEST_COPY = true;|' index.html > test-copy.html
+python3 tools/build.py [test-copy.html]   # docs/index.html, and optionally the test copy
+node tools/make-icons.js                  # redraw the app icons (Playwright)
+node tools/e2e/run.js server/Code.gs docs <residents dir> <rota json> <settings json>
 ```
+
+`tools/e2e` runs the real `Code.gs` against a stand-in for the Apps Script services and drives the built app as owner, trainer and resident, checking what each one can see and change.
+
+## Test copy
+
+A separate artifact runs the same code with `TEST_COPY = true` and its own database, so changes can be tried before the real tracker gets them. It is built from `index.html` by changing only the title and that flag: `python3 tools/build.py test-copy.html`.
 

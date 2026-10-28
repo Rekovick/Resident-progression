@@ -128,9 +128,11 @@ nav::-webkit-scrollbar { display: none; }
 .navbtn[aria-current="page"] .ic { color: var(--accent-bright); }
 .navbtn[aria-current="page"] { color: var(--mast-ink); border-bottom-color: var(--accent-bright); }
 .navbtn .cnt { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px; border-radius: 9px; background: var(--accent-bright); color: var(--mast); font-size: 11px; font-weight: 750; }
-.modechip { font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--mast-line); color: var(--mast-muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.modechip { background: none; cursor: default; font-size: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--mast-line); color: var(--mast-muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mast-muted); }
 .modechip.live .dot { background: #4CD38A; }
+button.modechip { cursor: pointer; }
+button.modechip .ic { width: 14px; height: 14px; }
 
 main { padding-block: 28px 72px; display: grid; gap: 22px; }
 .banner { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--r); background: var(--warn-soft); color: var(--warn); font-weight: 700; }
@@ -542,6 +544,9 @@ const LISTS = ["Sunday list", "Wednesday list", "Saturday list", "Extra list"];
 
 /* A test copy runs the same code against its own database, so changes can be tried before the real tracker gets them. */
 const TEST_COPY = false;
+/* The installable app (docs/) is built from this file with APP_BUILD = true: it keeps its records on a
+   Google Apps Script server instead of claude.ai, and each person connects with their own link. */
+const APP_BUILD = false;
 
 /* ---------- icons ---------- */
 const ICONS = {
@@ -571,6 +576,8 @@ const ICONS = {
   target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
   message: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
   fileText: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
   link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
   more: '<circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><circle cx="5" cy="12" r="1.5"/>',
   pencil: '<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>',
@@ -587,6 +594,7 @@ const SECTIONS = {
   rules: { label: "Program rules", short: "Rules", icon: "book", tone: "slate", eyebrow: "Reference" },
   settings: { label: "Settings", icon: "sliders", tone: "slate", eyebrow: "Program" },
   baseline: { label: "Surgical starting levels", icon: "layers", tone: "orange", eyebrow: "Launch" },
+  me: { label: "My progress", short: "Me", icon: "trending", tone: "blue", eyebrow: "Resident" },
 };
 const htitle = k => { const s = SECTIONS[k]; return `<div class="htitle"><span class="tile tone-${s.tone}">${ic(s.icon)}</span><div class="stack" style="gap:2px"><span class="eyebrow">${s.eyebrow}</span><h1>${s.label}</h1></div></div>`; };
 
@@ -643,8 +651,12 @@ const S = {
   mode: "loading", db: null, canEdit: true,
   residents: {}, caseDocs: {}, rota: {}, library: {}, settings: clone(SETTINGS_DEFAULT),
   loaded: { residents: false, cases: false },
+  me: null, conn: null, app: false, people: null, syncErr: null, connErr: "", installEvt: null,
   view: "roster", rid: null, tab: "progress", scoreYM: ymAdd(ymNow(), -1), theatreYM: ymNow(), rotaYM: ymNow(), ttab: "cases", q: "", modal: null,
 };
+const ROLE_NAME = { owner: "Owner", trainer: "Trainer", resident: "Resident" };
+const isResident = () => !!(S.me && S.me.role === "resident");
+const isOwner = () => !!(S.me && S.me.role === "owner");
 let CACHE = {};
 const invalidate = () => { CACHE = {}; };
 const cats = () => CATS_BUILTIN.concat(S.settings.categories || []);
@@ -984,7 +996,8 @@ function fairKey(id, seq, ym) {
   return { id, off: reliability(id).offender, L, turns: st.turns(L), month: casesThisMonth(id, ym), last: cxOf(id).lastDate || "" };
 }
 const byFair = (a, b) => (a.off - b.off) || (a.turns - b.turns) || (a.month - b.month) || a.last.localeCompare(b.last);
-function fairWhy(a, b) {
+function fairWhy(a, b, winnerRow) {
+  if (a.off !== b.off && winnerRow) return "Goes first on fairness";
   if (a.off !== b.off) return `${nm(b.id)} has ${reliability(b.id).unx} unexcused absences in the last ${RULE.offenceDays} days, so loses the fairness tie`;
   if (a.turns !== b.turns) return `Fewer turns on their current step: ${a.turns}${a.L ? " at " + stepLabel(a.L).toLowerCase() : ""}, against ${b.turns}${b.L ? " at " + stepLabel(b.L).toLowerCase() : ""} for ${nm(b.id)}`;
   if (a.month !== b.month) return `Same turns; fewer cases this month (${a.month} against ${b.month})`;
@@ -1036,7 +1049,7 @@ function planEmergency(c, rids, ym) {
     const list = cand.filter(x => x.g === g).map(x => Object.assign(fairKey(x.id, seq, ym), { g })).sort(byFair);
     if (!list.length) return;
     const win = list[0];
-    placed.push({ id: win.id, g, why: list.length > 1 ? fairWhy(win, list[1]) : "" });
+    placed.push({ id: win.id, g, why: list.length > 1 ? fairWhy(win, list[1], true) : "" });
     list.slice(1).forEach(o => observers.push({ id: o.id, steps: [], role: "observes", why: `Observes: same level as ${nm(win.id)}, who goes first. ${fairWhy(win, o)}` }));
   });
   cand.filter(x => x.g === "A").forEach(o => observers.push({ id: o.id, steps: [], role: "observes", why: "Attached residents observe" }));
@@ -1167,7 +1180,7 @@ function toast(msg) {
   t.textContent = msg; t.hidden = false;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
-const dbErr = e => e && e.code === "quota_exceeded" ? "The tracker's storage is full." : e && e.code === "invalid_argument" ? "You need edit access to change records." : "Could not save. Check your connection and try again.";
+const dbErr = e => { const c = String((e && (e.code || e.message)) || ""); return c === "quota_exceeded" ? "The tracker's storage is full." : c === "invalid_argument" || c === "VIEW_ONLY" ? "You need edit access to change records." : c === "ACCESS_DENIED" ? "This link has been switched off. Ask the program director for a new one." : "Could not save. Check your connection and try again."; };
 const local = () => S.mode !== "live";
 async function patchResident(id, patch, msg) {
   if (local()) { S.residents[id] = deepMerge(clone(S.residents[id]), patch); S.residents[id]._id = id; invalidate(); render(); if (msg) toast(msg); return true; }
@@ -1229,6 +1242,100 @@ function newResident(name, start, baseline) {
   return { name, start: start || null, startNote: "", baseline: baseline || null, reqs: {}, exams: { e1: [], e2: [] }, months: {}, stepBase: {}, lpBase: 0, notes: "", createdAt: new Date().toISOString() };
 }
 
+/* ---------- the installable app: records on a Google Apps Script server ---------- */
+/* A link carries the server's address and one person's key: ?c=<base64url of {s, k, n}>. */
+const CONN_KEY = "residency-tracker-connection";
+function readConn() { try { return JSON.parse(localStorage.getItem(CONN_KEY) || "null"); } catch (e) { return null; } }
+function saveConn(c) { try { if (c) localStorage.setItem(CONN_KEY, JSON.stringify(c)); else localStorage.removeItem(CONN_KEY); } catch (e) {} }
+const encodeConn = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+function decodeConn(v) {
+  try { const o = JSON.parse(decodeURIComponent(escape(atob(String(v).replace(/-/g, "+").replace(/_/g, "/"))))); return o && /^https:\/\//.test(o.s) && o.k ? o : null; } catch (e) { return null; }
+}
+function connFromText(t) {
+  const m = String(t || "").match(/[?&#]c=([A-Za-z0-9_-]+)/);
+  return m ? decodeConn(m[1]) : null;
+}
+const appBase = () => location.origin + location.pathname;
+const linkFor = p => appBase() + "?c=" + encodeConn({ s: S.conn.s, k: p.key, n: p.name });
+async function call(fn, ...args) {
+  // text/plain keeps this a simple request, which Apps Script answers without a CORS preflight
+  const r = await fetch(S.conn.s, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ key: S.conn.k, fn, args }), redirect: "follow" });
+  const j = await r.json();
+  if (!j.ok) { const e = new Error(j.error); e.code = String(j.error).split(":")[0]; throw e; }
+  return j.result;
+}
+/* The same calls the page makes on the claude.ai database (collection/doc, onSnapshot, set/update/delete),
+   served from the Apps Script server and kept fresh by polling while the app is open. */
+function remoteDB() {
+  const docs = {}, subs = [];
+  let rev = 0, timer = null, busy = false;
+  const inCol = (path, name) => path.split("/")[0] === name;
+  const snapCol = name => ({ docs: Object.keys(docs).filter(p => inCol(p, name)).map(p => ({ id: p.split("/")[1], data: () => clone(docs[p]) })) });
+  const snapDoc = path => ({ exists: path in docs, data: () => clone(docs[path]) });
+  const fire = s => s.cb(s.col ? snapCol(s.path) : snapDoc(s.path));
+  const emit = changed => subs.forEach(s => { if (changed.some(p => s.col ? inCol(p, s.path) : p === s.path)) fire(s); });
+  const apply = list => list.map(d => { if (d.data == null) delete docs[d.path]; else docs[d.path] = d.data; return d.path; });
+  const load = b => { Object.keys(docs).forEach(k => delete docs[k]); apply(b.docs); rev = b.rev; subs.forEach(fire); };
+  async function pull() {
+    if (busy) return;
+    busy = true;
+    try {
+      const r = await call("sync", rev);
+      if (r.reset) load(await call("bootstrap"));
+      else { rev = r.rev; const ch = apply(r.changes); if (ch.length) emit(ch); }
+      if (S.syncErr) { S.syncErr = null; render(); }
+    } catch (e) {
+      if (!S.syncErr) { S.syncErr = e; render(); }
+    } finally { busy = false; }
+  }
+  const schedule = () => { clearTimeout(timer); timer = setTimeout(async () => { await pull(); schedule(); }, document.hidden ? 120000 : 20000); };
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) { pull(); schedule(); } });
+  const write = async (fn, path, data) => { const r = await call(fn, path, data); emit(apply([r])); };
+  return {
+    start: async () => { const b = await call("bootstrap"); S.me = b.me; load(b); schedule(); },
+    reload: async () => load(await call("bootstrap")),
+    collection: name => ({
+      onSnapshot: cb => { const s = { col: true, path: name, cb }; subs.push(s); fire(s); },
+      doc: () => ({ id: name.slice(0, 1) + uid() + uid() }),
+    }),
+    doc: path => ({
+      onSnapshot: cb => { const s = { col: false, path, cb }; subs.push(s); fire(s); },
+      set: data => write("setDoc", path, data),
+      update: data => write("updateDoc", path, data),
+      delete: () => write("deleteDoc", path, null),
+    }),
+  };
+}
+let qrLib = null;
+function loadQR() {
+  if (window.qrcode) return Promise.resolve(window.qrcode);
+  if (!qrLib) qrLib = new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"; sc.onload = () => res(window.qrcode); sc.onerror = rej; document.head.appendChild(sc); });
+  return qrLib;
+}
+async function loadPeople() {
+  if (S.peopleLoading) return;
+  S.peopleLoading = true;
+  try { S.people = await call("listPeople"); } catch (e) { toast(dbErr(e)); } finally { S.peopleLoading = false; render(); }
+}
+function openLink(p) {
+  const url = linkFor(p);
+  openModal({ type: "plink", draft: { p, url, qr: "" } });
+  loadQR().then(q => { const qr = q(0, "M"); qr.addData(url); qr.make(); if (S.modal && S.modal.type === "plink" && S.modal.draft.url === url) { S.modal.draft.qr = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); renderModal(); } }).catch(() => { if (S.modal && S.modal.type === "plink") { S.modal.draft.qr = "none"; renderModal(); } });
+}
+/* Every record, in the shape the server's import takes: {path: data}. */
+function exportDocs() {
+  const docs = {};
+  Object.entries(S.residents).forEach(([id, r]) => { const d = clone(r); delete d._id; docs["residents/" + id] = d; });
+  Object.entries(S.caseDocs).forEach(([ym, d]) => { docs["cases/" + ym] = clone(d); });
+  Object.entries(S.rota).forEach(([ym, d]) => { docs["rota/" + ym] = clone(d); });
+  Object.entries(S.library).forEach(([id, d]) => { docs["library/" + id] = clone(d); });
+  docs["settings/program"] = clone(S.settings);
+  return { format: "residency-tracker", exportedAt: new Date().toISOString(), docs };
+}
+function parseExport(text) {
+  try { const o = JSON.parse(text); return o && o.format === "residency-tracker" && o.docs && typeof o.docs === "object" ? o : null; } catch (e) { return null; }
+}
+
 /* ---------- rendering ---------- */
 const app = document.getElementById("app");
 const modalRoot = document.getElementById("modal");
@@ -1247,15 +1354,17 @@ function render() {
 function toReviewCount() { const t = todayISO(); return allCases().filter(c => caseStatus(c) === "planned" && c.date <= t).length; }
 function topBar() {
   const due = toReviewCount();
-  const nav = [["roster", due && 0], ["theatre", due], ["rota"], ["fair"], ["scoring"], ["rules"], ["settings"]];
-  const cur = S.view === "resident" ? "roster" : S.view === "baseline" ? "roster" : S.view;
-  const chip = S.mode === "live" ? `<span class="modechip live"><span class="dot"></span>Shared${S.canEdit ? "" : " · view only"}</span>` : S.mode === "loading" ? `<span class="modechip"><span class="dot"></span>Connecting</span>` : `<span class="modechip"><span class="dot"></span>Not saved</span>`;
+  const resident = isResident();
+  const nav = resident ? [["me"], ["theatre"], ["rota"], ["rules"]] : [["roster"], ["theatre", due], ["rota"], ["fair"], ["scoring"], ["rules"], ["settings"]];
+  const tabs = resident ? ["me", "theatre", "rota", "rules"] : ["roster", "theatre", "rota", "fair"];
+  const cur = S.view === "resident" ? (resident ? "me" : "roster") : S.view === "baseline" ? "roster" : S.view;
+  const chip = S.mode === "connect" ? "" : S.me ? `<button class="modechip live" data-act="me-menu"><span class="dot"></span>${esc(S.me.name)} · ${ROLE_NAME[S.me.role]}</button>` : S.mode === "live" ? `<span class="modechip live"><span class="dot"></span>Shared${S.canEdit ? "" : " · view only"}</span>` : S.mode === "loading" ? `<span class="modechip"><span class="dot"></span>Connecting</span>` : `<span class="modechip"><span class="dot"></span>Not saved</span>`;
   return `<header class="top"><div class="wrap top-in">
-    <div class="toprow"><div class="brand">${logo()}<div><div class="b1">Neurosurgery Residency</div><div class="b2">${TEST_COPY ? "Test copy, not the real tracker" : "Progression and theatre tracker"}</div></div></div>${chip}</div>
-    <nav aria-label="Sections">${nav.map(([k, n]) => `<button class="navbtn" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}>${ic(SECTIONS[k].icon)}${SECTIONS[k].label}${n ? `<span class="cnt" aria-label="${n} to review">${n}</span>` : ""}</button>`).join("")}</nav>
+    <div class="toprow"><div class="brand">${logo()}<div><div class="b1">Neurosurgery Residency</div><div class="b2">${TEST_COPY ? "Test copy, not the real tracker" : "Progression and theatre tracker"}</div></div></div>${S.installEvt ? `<button class="modechip" data-act="install">${ic("download")}Install</button>` : ""}${chip}</div>
+    ${S.mode === "connect" ? "" : `<nav aria-label="Sections">${nav.map(([k, n]) => `<button class="navbtn" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}>${ic(SECTIONS[k].icon)}${SECTIONS[k].label}${n ? `<span class="cnt" aria-label="${n} to review">${n}</span>` : ""}</button>`).join("")}</nav>`}
   </div></header>
-  <nav class="tabbar" aria-label="Sections">${["roster", "theatre", "rota", "fair"].map(k => `<button class="tabbtn tone-${SECTIONS[k].tone}" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}><span class="pip">${ic(SECTIONS[k].icon)}</span>${SECTIONS[k].short || SECTIONS[k].label}${k === "theatre" && due ? `<span class="cnt" aria-label="${due} to review">${due}</span>` : ""}</button>`).join("")}
-    <button class="tabbtn tone-slate" data-act="more" ${["scoring", "rules", "settings"].includes(cur) ? 'aria-current="page"' : ""}><span class="pip">${ic("more")}</span>More</button></nav>`;
+  ${S.mode === "connect" ? "" : `<nav class="tabbar" aria-label="Sections" style="grid-template-columns:repeat(${resident ? 4 : 5},minmax(0,1fr))">${tabs.map(k => `<button class="tabbtn tone-${SECTIONS[k].tone}" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}><span class="pip">${ic(SECTIONS[k].icon)}</span>${SECTIONS[k].short || SECTIONS[k].label}${k === "theatre" && due ? `<span class="cnt" aria-label="${due} to review">${due}</span>` : ""}</button>`).join("")}
+    ${resident ? "" : `<button class="tabbtn tone-slate" data-act="more" ${["scoring", "rules", "settings"].includes(cur) ? 'aria-current="page"' : ""}><span class="pip">${ic("more")}</span>More</button>`}</nav>`}`;
 }
 function logo() {
   const bars = LEVELS.map((_, i) => `<rect x="${2 + i * 4.3}" y="${26 - (i + 1) * 3.2}" width="3.2" height="${(i + 1) * 3.2}" rx="1" fill="var(--l${i})"/>`).join("");
@@ -1265,12 +1374,27 @@ function banner() {
   const out = [];
   if (TEST_COPY) out.push(`<div class="banner">Test copy. Records here are separate from the real tracker, so try anything: nothing you do here changes it.</div>`);
   if (S.mode === "offline") out.push(`<div class="banner">This copy is not connected to the shared tracker, so changes stay in this tab and are lost when it closes. Open the tracker from its claude.ai link to save records.</div>`);
-  if (S.mode === "live" && inTransition()) out.push(`<div class="note">Transition period (${ymLabel(S.settings.launch)} to ${ymLabel(ymAdd(S.settings.launch, RULE.transitionMonths - 1))}): any step within a resident's ceiling can be completed by two satisfactory performances observed by two different specialists. Set where everyone is now in <button class="linkbtn" data-act="nav" data-v="baseline">Surgical starting levels</button>.</div>`);
+  if (S.app && S.syncErr) out.push(`<div class="banner">${ic("alert")}Can't reach the server, so this may not show the latest records and changes can't be saved. It retries on its own.</div>`);
+  if (S.mode === "live" && S.canEdit && inTransition()) out.push(`<div class="note">Transition period (${ymLabel(S.settings.launch)} to ${ymLabel(ymAdd(S.settings.launch, RULE.transitionMonths - 1))}): any step within a resident's ceiling can be completed by two satisfactory performances observed by two different specialists. Set where everyone is now in <button class="linkbtn" data-act="nav" data-v="baseline">Surgical starting levels</button>.</div>`);
   return out.join("");
 }
 function view() {
+  if (S.mode === "connect") return connectView();
+  if (isResident() && !["theatre", "rota", "rules"].includes(S.view)) { S.view = "resident"; S.rid = S.me.rid; }
   if (S.view === "resident" && S.residents[S.rid]) return residentView();
+  if (isResident() && S.view === "resident") return `<div class="card empty"><h2>Your record isn't in the tracker</h2><p class="muted">Ask the program director to check your link.</p></div>`;
   return ({ scoring: scoringView, theatre: theatreView, rota: rotaView, fair: fairView, baseline: baselineView, rules: rulesView, settings: settingsView }[S.view] || rosterView)();
+}
+function connectView() {
+  return `<div class="card stack" style="max-width:560px;width:100%;margin:6vh auto 0;padding:24px">
+    <div class="htitle"><span class="tile tone-teal">${ic("link")}</span><div class="stack" style="gap:2px"><span class="eyebrow">Neurosurgery Residency</span><h1>Connect this device</h1></div></div>
+    <p class="muted">${S.connErr ? esc(S.connErr) : "Open your personal link on this phone, or paste it here. The program director sends it to you on WhatsApp."}</p>
+    ${S.retry ? `<div><button class="btn primary" data-act="reload">${ic("clock")}Try again</button></div>` : ""}
+    <label class="field"><span>Your link</span><input type="text" id="cn-link" placeholder="${esc(appBase())}?c=…" autocomplete="off"></label>
+    <details><summary>Setting up the tracker? Use the server link and your key</summary><div class="stack" style="margin-top:10px">
+      <label class="field"><span>Server link (ends in /exec)</span><input type="text" id="cn-s" autocomplete="off"></label>
+      <label class="field"><span>Access key</span><input type="text" id="cn-k" autocomplete="off"></label></div></details>
+    <div class="row"><button class="btn primary" data-act="connect">${ic("link")}Connect</button></div></div>`;
 }
 function sortedIds() {
   return Object.keys(S.residents).sort((a, b) => run(S.residents[b]).level - run(S.residents[a]).level || startOf(S.residents[a]).localeCompare(startOf(S.residents[b])) || String(S.residents[a].name).localeCompare(String(S.residents[b].name)));
@@ -1319,7 +1443,7 @@ function residentView() {
   const tabs = [["progress", "Progress", "trending"], ["scores", "Monthly scores", "clipboardCheck"], ["reqs", "Requirements", "check"], ["exams", "Exams", "cap"], ["surgery", "Surgical ladders", "layers"], ["theatre", "Theatre record", "activity"], ["profile", "Profile", "users"]];
   const body = { progress: tabProgress, scores: tabScores, reqs: tabReqs, exams: tabExams, surgery: tabSurgery, theatre: tabTheatre, profile: tabProfile }[S.tab] || tabProgress;
   const ar = arName(S.rid);
-  return `<div class="rhead"><button class="btn ghost back" data-act="nav" data-v="roster">${ic("chevL")}All residents</button>
+  return `<div class="rhead">${isResident() ? "" : `<button class="btn ghost back" data-act="nav" data-v="roster">${ic("chevL")}All residents</button>`}
     <div class="rtitle">${avatar(S.rid, "lg")}<div class="stack" style="gap:4px"><h1>${esc(res.name)}</h1><div class="row" style="gap:8px">${pillName(E.level)}${ar ? `<span class="muted" dir="rtl" lang="ar">${esc(ar)}</span>` : ""}</div></div><div class="chips">${statusChips(res, E)}</div></div>
     <div class="facts">
       <div class="fact"><div class="label">Month in program</div><div class="v">${res.start ? (E.i >= 1 ? E.i : "–") : esc(res.startNote || "–")}</div></div>
@@ -1524,7 +1648,7 @@ function caseCard(c) {
 }
 function theatreView() {
   const tabs = `<div class="tabs" role="tablist">${[["cases", "Cases", "activity"], ["library", "Case library", "book"]].map(([k, l, i]) => `<button class="tab" role="tab" data-act="ttab" data-v="${k}" aria-selected="${S.ttab === k}">${ic(i)}${l}</button>`).join("")}</div>`;
-  const head = `<div class="head"><div>${htitle("theatre")}<p class="muted">Plan who does which step, then review every case: what was done, who came, and whether each step was really given.</p></div>
+  const head = `<div class="head"><div>${htitle("theatre")}<p class="muted">${S.canEdit ? "Plan who does which step, then review every case: what was done, who came, and whether each step was really given." : "Every case and its team. Open a case to see your steps and why you have your place."}</p></div>
     ${S.canEdit ? `<div class="actions"><button class="btn" data-act="new-em">${ic("zap")}Emergency case</button><button class="btn primary" data-act="new-list">${ic("clipboardList")}Elective list</button></div>` : ""}</div>`;
   if (S.ttab === "library") return head + tabs + libraryView();
   const ym = S.theatreYM, list = allCases().filter(c => c.ym === ym), today = todayISO();
@@ -1579,7 +1703,7 @@ function rotaView() {
     ${S.canEdit ? `<div class="actions"><button class="btn primary" data-act="rota-paste">${ic("clipboardList")}Paste a rota</button></div>` : ""}</div>
   <div class="row"><button class="btn sm" data-act="ym" data-k="rotaYM" data-d="-1" aria-label="Previous month">${ic("chevL")}</button><h2 style="min-width:120px;text-align:center">${ymLabel(ym)}</h2>
     <button class="btn sm" data-act="ym" data-k="rotaYM" data-d="1" aria-label="Next month" ${ym >= ymAdd(ymNow(), 2) ? "disabled" : ""}>${ic("chevR")}</button>
-    <span class="small muted">${links} name link${links === 1 ? "" : "s"} saved · <button class="linkbtn" data-act="nav" data-v="settings">manage</button></span></div>
+    ${S.canEdit ? `<span class="small muted">${links} name link${links === 1 ? "" : "s"} saved · <button class="linkbtn" data-act="nav" data-v="settings">manage</button></span>` : ""}</div>
   ${has ? "" : `<div class="note">No rota for ${ymLabel(ym)} yet. ${S.canEdit ? "Paste the schedule you made with Claude, Arabic names and all. You link each name to a resident once and the tracker remembers it." : ""}</div>`}
   <div class="tablewrap rota">${rows.join("")}</div>`;
 }
@@ -1705,7 +1829,27 @@ function settingsView() {
     <label class="field"><span>The on-call day starts at</span><select id="set-shift" data-set="shiftStart" ${dis}>${[6, 7, 8, 9, 10].map(h => `<option value="${h}" ${+s.shiftStart === h ? "selected" : ""}>${String(h).padStart(2, "0")}:00</option>`).join("")}</select></label>
     <p class="small muted">An emergency case starting before this time is given to the previous day's on-call team.</p>
     <h3>Program steps</h3>${custom.length ? `<div class="stack" style="gap:6px">${custom.map(([k, c]) => `<div class="row small"><span class="rname">${esc(c.label)}</span><span class="muted">${c.n} performances · from ${GROUP_NAME[c.min || "S"].toLowerCase()}</span></div>`).join("")}</div>` : `<p class="small muted">Steps you add while describing a new case appear here.</p>`}
-    <h3>Launch month</h3><p class="small"><strong>${ymLabel(s.launch)}</strong>. Transition window: ${ymLabel(s.launch)} to ${ymLabel(ymAdd(s.launch, RULE.transitionMonths - 1))}${inTransition() ? " (open now)" : ""}.</p></div></div>`;
+    <h3>Launch month</h3><p class="small"><strong>${ymLabel(s.launch)}</strong>. Transition window: ${ymLabel(s.launch)} to ${ymLabel(ymAdd(s.launch, RULE.transitionMonths - 1))}${inTransition() ? " (open now)" : ""}.</p></div>${peopleCard()}${moveCard()}</div>`;
+}
+function peopleCard() {
+  if (!S.app || !isOwner()) return "";
+  if (!S.people) { loadPeople(); return `<div class="card stack"><h2 class="hrow">${ic("users")}People with access</h2><p class="muted small">Loading…</p></div>`; }
+  const trainers = S.people.filter(p => p.role !== "resident");
+  const byRid = Object.fromEntries(S.people.filter(p => p.role === "resident").map(p => [p.rid, p]));
+  const row = (who, p, extra) => `<div class="row" style="justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)">${who}<span class="row" style="gap:6px">${extra || ""}${p ? `<button class="btn sm" data-act="pp-send" data-id="${p.id}">${ic("message")}Send link</button>${p.role !== "owner" ? `<button class="btn ghost sm" data-act="pp-off" data-id="${p.id}">Switch off</button>` : ""}` : ""}</span></div>`;
+  return `<div class="card stack"><h2 class="hrow">${ic("users")}People with access</h2>
+    <p class="small muted">Each person opens their own link; no account or password. Specialists' links can change records. A resident's link shows only their own record, the rota and the theatre cases. Switching a link off disconnects that phone at once.</p>
+    <h3>Specialists and trainers</h3>
+    <div>${trainers.map(p => row(`<span class="person"><span class="tile sm tone-${p.role === "owner" ? "teal" : "violet"}">${ic(p.role === "owner" ? "shield" : "pencil")}</span><span class="nm">${esc(p.name)}</span><span class="chip">${ROLE_NAME[p.role]}</span></span>`, p)).join("")}</div>
+    <div class="newstep" style="grid-template-columns:minmax(0,1fr) auto"><label class="field"><span>New trainer link</span><input type="text" id="pp-name" list="spec-list" placeholder="Specialist's name"></label><button class="btn" data-act="pp-add">${ic("plus")}Create link</button></div>
+    <h3>Residents</h3>
+    <div>${sortedIds().map(id => row(person(id, pill(lvlOf(id))), byRid[id], byRid[id] ? "" : `<button class="btn sm primary" data-act="pp-res" data-id="${id}">${ic("plus")}Create link</button>`)).join("")}</div></div>`;
+}
+function moveCard() {
+  if (!S.canEdit || S.mode !== "live") return "";
+  return `<div class="card stack"><h2 class="hrow">${ic("fileText")}Move the records</h2>
+    <p class="small muted">${S.app ? "Copy every record, for a backup or to move them. The owner can replace every record here with ones copied from the claude.ai tracker." : "Copy every record here, then paste them into the installable app under Settings, Replace all records."}</p>
+    <div class="row"><button class="btn" data-act="export">${ic("copy")}Copy all records</button>${S.app && isOwner() ? `<button class="btn danger" data-act="imp-all">${ic("alert")}Replace all records</button>` : ""}</div></div>`;
 }
 
 /* ---------- modals ---------- */
@@ -1717,7 +1861,7 @@ function monthSel(field, value) {
 }
 function openModal(m) { S.modal = m; renderModal(); const f = modalRoot.querySelector("input:not([type=hidden]):not([type=checkbox]), select, textarea"); if (f) f.focus(); }
 function closeModal() { S.modal = null; modalRoot.innerHTML = ""; }
-const MODALS = () => ({ score: scoreModal, add: addModal, edit: addModal, import: importModal, exam: examModal, delete: deleteModal, em: emModal, list: listModal, review: reviewModal, tsign: tsignModal, lpbase: lpBaseModal, libedit: libEditModal, rota: rotaPasteModal, rday: rotaDayModal, copy: copyModal, more: moreModal });
+const MODALS = () => ({ score: scoreModal, add: addModal, edit: addModal, import: importModal, exam: examModal, delete: deleteModal, em: emModal, list: listModal, review: reviewModal, tsign: tsignModal, lpbase: lpBaseModal, libedit: libEditModal, rota: rotaPasteModal, rday: rotaDayModal, copy: copyModal, more: moreModal, caseview: caseViewModal, plink: linkModal, me: meModal, impall: importAllModal, ppoff: offModal });
 function renderModal() {
   const m = S.modal; if (!m) { modalRoot.innerHTML = ""; return; }
   const scrollEl = modalRoot.querySelector(".scrim"), top = scrollEl ? scrollEl.scrollTop : 0;
@@ -1888,6 +2032,45 @@ function lpBaseModal() {
 function moreModal() {
   return `<div class="mhead"><h2>More</h2></div><div class="mbody"><div class="morelist">${["scoring", "rules", "settings"].map(k => `<button class="moreitem" data-act="nav" data-v="${k}"><span class="tile sm tone-${SECTIONS[k].tone}">${ic(SECTIONS[k].icon)}</span>${SECTIONS[k].label}</button>`).join("")}</div></div>
   <div class="mfoot"><button class="btn" data-act="close">Close</button></div>`;
+}
+function caseViewModal() {
+  const c = allCases().find(x => x.id === S.modal.id);
+  if (!c) return `<div class="mhead"><h2>This case was removed</h2></div><div class="mfoot"><button class="btn" data-act="close">Close</button></div>`;
+  const myId = S.me && S.me.rid, mine = (c.team || []).find(t => t.rid === myId);
+  const did = Object.entries(c.out || {}).filter(([, o]) => o && o.who && o.who === myId);
+  return `<div class="mhead"><span class="label">${esc(dayLabel(c.date))}${c.time ? " · " + esc(c.time) : ""} · ${c.kind === "elective" ? esc(c.list || "Elective") : "Emergency"}</span><h2>${esc(caseTitle(c))}</h2>
+    <div class="row">${catChip(c.cat)}${statusChip(c)}${c.specialist ? `<span class="small muted">${esc(c.specialist)}</span>` : ""}</div></div>
+  <div class="mbody"><div class="cteam" style="margin-top:0">${teamLines(c) || `<p class="small muted">No team.</p>`}</div>
+    ${mine && mine.why ? `<div class="note"><strong>Why you have this place:</strong> ${esc(mine.why)}</div>` : ""}
+    ${did.length ? `<div class="stack" style="gap:6px"><h3>What you did</h3>${did.map(([k, o]) => `<div class="row small"><span class="chip ${o.o === "sat" ? "ok" : o.o === "taken" ? "hold" : "warn"}">${esc(OUTCOMES[o.o] || "Done")}</span>${esc(stepLabel(k))}</div>`).join("")}</div>` : ""}</div>
+  <div class="mfoot"><button class="btn" data-act="cv-copy">${ic("message")}Copy for WhatsApp</button><button class="btn primary" data-act="close">Close</button></div>`;
+}
+function linkModal() {
+  const d = S.modal.draft, p = d.p;
+  const msg = `Your link to the Neurosurgery Residency Tracker${p.role === "resident" ? "" : " (trainer: you can record cases and reviews)"}. Open it on your phone, then add it to your home screen. Keep it to yourself.\n${d.url}`;
+  return `<div class="mhead"><span class="eyebrow">${ROLE_NAME[p.role]} link</span><h2>${esc(p.name)}</h2><p class="small muted">${p.role === "resident" ? "Shows their own record, the rota and the theatre cases." : "Can change every record."} Scan the code on their phone, or send the link.</p></div>
+  <div class="mbody"><div class="qr" style="display:grid;place-items:center">${d.qr === "none" ? `<p class="small muted">The QR code didn't load. Send the link instead.</p>` : d.qr ? `<div style="width:min(240px,70vw);background:#fff;padding:8px;border-radius:12px">${d.qr}</div>` : `<p class="small muted">Making the QR code…</p>`}</div>
+    <label class="field"><span>Link</span><input type="text" id="pl-url" readonly value="${esc(d.url)}"></label></div>
+  <div class="mfoot"><button class="btn" data-act="pl-copy">${ic("copy")}Copy link</button><a class="btn primary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${ic("message")}Send on WhatsApp</a></div>`;
+}
+function offModal() {
+  const p = (S.people || []).find(x => x.id === S.modal.id);
+  return `<div class="mhead"><h2>Switch off ${esc(p ? p.name : "this")} link?</h2></div><div class="mbody"><p>Their phone loses access straight away. You can make a new link for them later.</p></div>
+  <div class="mfoot"><button class="btn" data-act="close">Keep it</button><button class="btn danger" data-act="pp-off-ok">Switch off</button></div>`;
+}
+function meModal() {
+  return `<div class="mhead"><span class="eyebrow">This device</span><h2>${esc(S.me.name)}</h2><p class="small muted">${ROLE_NAME[S.me.role]}. ${S.me.role === "resident" ? "You see your own record, the rota and the theatre cases." : "You can change records."}</p></div>
+  <div class="mbody"><p class="small">To add the app to your home screen: on Android, tap Install or Chrome's menu, then Install app. On iPhone, open the link in Safari, then Share, Add to Home Screen.</p></div>
+  <div class="mfoot"><button class="btn danger left" data-act="disconnect">Disconnect this device</button><button class="btn primary" data-act="close">Done</button></div>`;
+}
+function importAllModal() {
+  const d = S.modal.draft, o = parseExport(d.text), counts = {};
+  if (o) Object.keys(o.docs).forEach(p => { const c = p.split("/")[0]; counts[c] = (counts[c] || 0) + 1; });
+  return `<div class="mhead"><span class="eyebrow">Owner</span><h2>Replace all records</h2><p class="small muted">In the claude.ai tracker, open Settings and press Copy all records. Paste it here. Every record in the app is replaced by what you paste.</p></div>
+  <div class="mbody"><textarea id="ia-text" data-m="text" data-rerender rows="8" placeholder="Paste the copied records">${esc(d.text)}</textarea>
+    ${d.text.trim() ? (o ? `<div class="note ok">${esc(Object.entries(counts).map(([c, n]) => n + " " + c).join(", "))}, copied ${esc(dateLabel(o.exportedAt.slice(0, 10)))}.</div>` : `<div class="note hold">That isn't a copy of the tracker's records. Use Copy all records in the claude.ai tracker.</div>`) : ""}
+    <label class="row"><input type="checkbox" id="ia-ok" data-m="ok" data-rerender ${d.ok ? "checked" : ""}> I understand every record in the app is replaced</label>${errLine()}</div>
+  <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn danger" data-act="ia-save" ${o && d.ok ? "" : "disabled"}>Replace all records</button></div>`;
 }
 function copyModal() {
   return `<div class="mhead"><h2>Copy the message</h2><p class="small muted">Copying straight to the clipboard isn't allowed here. Select the text and copy it.</p></div>
@@ -2185,7 +2368,37 @@ document.addEventListener("click", async e => {
   const act = el.dataset.act, m = S.modal;
   if (act === "scrim") { if (e.target === el) closeModal(); return; }
   switch (act) {
-    case "nav": S.view = el.dataset.v; closeModal(); window.scrollTo(0, 0); render(); break;
+    case "nav": S.view = el.dataset.v; if (S.view === "me") { S.view = "resident"; S.rid = S.me.rid; S.tab = "progress"; } closeModal(); window.scrollTo(0, 0); render(); break;
+    case "me-menu": openModal({ type: "me", draft: {} }); break;
+    case "install": if (S.installEvt) { S.installEvt.prompt(); S.installEvt = null; render(); } break;
+    case "reload": location.reload(); break;
+    case "disconnect": saveConn(null); location.replace(appBase()); break;
+    case "connect": {
+      const t = document.getElementById("cn-link").value.trim(), sv = document.getElementById("cn-s").value.trim(), k = document.getElementById("cn-k").value.trim();
+      const c = connFromText(t) || (/^https:\/\/\S+\/exec$/.test(sv) && k.length >= 32 ? { s: sv, k } : null);
+      if (!c) { S.connErr = t ? "That link isn't a tracker link. Open the link you were sent, or paste all of it." : "Paste your link, or the server link (ending in /exec) and your key."; render(); break; }
+      saveConn(c); location.replace(appBase()); break;
+    }
+    case "pp-add": {
+      const name = document.getElementById("pp-name").value.trim();
+      if (!name) { toast("Enter the specialist's name."); break; }
+      try { const p = await call("addPerson", name, "trainer", ""); S.people = null; render(); openLink(p); } catch (err) { toast(dbErr(err)); }
+      break;
+    }
+    case "pp-res": { const id = el.dataset.id; try { const p = await call("addPerson", nm(id), "resident", id); S.people = null; render(); openLink(p); } catch (err) { toast(dbErr(err)); } break; }
+    case "pp-send": { const p = (S.people || []).find(x => x.id === el.dataset.id); if (p) openLink(p); break; }
+    case "pp-off": openModal({ type: "ppoff", id: el.dataset.id }); break;
+    case "pp-off-ok": try { S.people = await call("removePerson", m.id); closeModal(); render(); toast("Link switched off"); } catch (err) { toast(dbErr(err)); } break;
+    case "pl-copy": copyText(m.draft.url); break;
+    case "export": copyText(JSON.stringify(exportDocs())); break;
+    case "imp-all": openModal({ type: "impall", draft: { text: "", ok: false } }); break;
+    case "ia-save": {
+      const o = parseExport(m.draft.text);
+      if (!o || !m.draft.ok) break;
+      try { const r = await call("importDocs", o.docs); await S.db.reload(); closeModal(); toast(`${r.imported} records imported`); } catch (err) { m.err = dbErr(err); renderModal(); }
+      break;
+    }
+    case "cv-copy": { const c = allCases().find(x => x.id === m.id); if (c) copyText(caseText(c)); break; }
     case "open": S.view = "resident"; S.rid = el.dataset.id; S.tab = "progress"; window.scrollTo(0, 0); render(); break;
     case "open-theatre": S.view = "resident"; S.rid = el.dataset.id; S.tab = "theatre"; window.scrollTo(0, 0); render(); break;
     case "tab": S.tab = el.dataset.v; render(); break;
@@ -2312,7 +2525,7 @@ document.addEventListener("click", async e => {
     }
     case "lib-del": case "lib-reset": if (await saveLib(m.draft.libId, null)) { closeModal(); toast(act === "lib-del" ? "Removed from the library" : "Reset to the default"); } break;
     /* theatre: review */
-    case "case-open": { const c = allCases().find(x => x.id === el.dataset.id); if (c) openReview(c); break; }
+    case "case-open": { const c = allCases().find(x => x.id === el.dataset.id); if (c) { if (S.canEdit) openReview(c); else openModal({ type: "caseview", id: c.id }); } break; }
     case "rv-status": m.draft.status = el.dataset.v; m.err = ""; renderModal(); break;
     case "rv-att": {
       const d = m.draft, t = d.team[+el.dataset.i]; t.att = el.dataset.v;
@@ -2375,6 +2588,7 @@ function onField(e) {
     if (t.dataset.m === "level" && m.type === "add") { d.exam1 = +t.value >= 4; d.exam2 = +t.value >= 6; d.points = Math.max(0, ymDiff(d.bmonth, d.start)) * RULE.openingPoints; }
     if (t.dataset.rerender != null && e.type === "change") rerender = true;
     if (m.type === "em" && (t.dataset.m === "date" || t.dataset.m === "time") && e.type === "change") { if (!d.touched) d.rids = emRota(d).ids; rerender = true; }
+    if (m.type === "impall" && t.dataset.m === "text") rerender = true;
     if (m.type === "list" && t.dataset.m === "date" && e.type === "change") d.away = uniq(d.away.concat(rotaDay(addDays(d.date, -1)).filter(id => S.residents[id])));
     if (t.dataset.preview != null) {
       const rows = parseImport(d.text), good = rows.filter(r => !r.err);
@@ -2409,12 +2623,36 @@ document.addEventListener("input", onField);
 document.addEventListener("change", e => { const t = e.target; if (t.type === "radio" || t.tagName === "SELECT" || t.type === "checkbox" || t.type === "date" || t.type === "time" || t.dataset.req) onField(e); });
 
 /* ---------- start ---------- */
+if (APP_BUILD) {
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); S.installEvt = e; render(); });
+}
 render();
 (async () => {
-  const db = window.claude && window.claude.use ? await window.claude.use("db").catch(() => null) : null;
-  if (!db) { S.mode = "offline"; render(); return; }
+  let db = null;
+  if (APP_BUILD) {
+    const fromUrl = connFromText(location.search || location.hash);
+    if (fromUrl) { saveConn(fromUrl); try { history.replaceState(null, "", appBase()); } catch (e) {} }
+    S.conn = fromUrl || readConn();
+    if (!S.conn) { S.mode = "connect"; render(); return; }
+    S.app = true;
+    db = remoteDB();
+    try { await db.start(); }
+    catch (e) {
+      const denied = String(e.code || e.message) === "ACCESS_DENIED";
+      if (denied) saveConn(null);
+      S.mode = "connect"; S.retry = !denied;
+      S.connErr = denied ? "This link has been switched off. Ask the program director for a new one." : "Could not reach the tracker's server. Check your connection and try again.";
+      render(); return;
+    }
+    S.canEdit = S.me.role !== "resident";
+    if (fromUrl) toast("Connected as " + S.me.name);
+  } else {
+    db = window.claude && window.claude.use ? await window.claude.use("db").catch(() => null) : null;
+    if (!db) { S.mode = "offline"; render(); return; }
+    try { const u = await window.claude.use("user"); if (u) S.canEdit = await u.canEdit(); } catch (e) {}
+  }
   S.db = db;
-  try { const u = await window.claude.use("user"); if (u) S.canEdit = await u.canEdit(); } catch (e) {}
   const refresh = () => { invalidate(); render(); if (S.modal && S.modal.type !== "copy") renderModal(); };
   const live = () => { if (S.loaded.residents && S.loaded.cases) S.mode = "live"; invalidate(); if (S.view === "resident" && !S.residents[S.rid]) S.view = "roster"; render(); if (S.modal && S.modal.type === "delete" && !S.residents[S.modal.rid]) closeModal(); };
   const fail = () => { S.mode = "offline"; render(); toast("Lost the connection to the shared tracker. Reload to reconnect."); };
