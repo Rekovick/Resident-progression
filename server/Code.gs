@@ -10,6 +10,9 @@
  *   resident — reads only their own record in full, plus the rota, the case library and the
  *              theatre cases with other residents' attendance and step outcomes removed
  *
+ * A trainer can also make a review link for one case. It carries a token instead of a key and lets
+ * whoever opens it (the supervising specialist) record that case's attendance and steps, nothing else.
+ *
  * Everything is stored in the Google Drive of the account that deploys this script, in one
  * Google Sheet created by setup(). Its "Docs" tab holds one row per record:
  *
@@ -25,8 +28,12 @@ const HEAD = ['path', 'rev', 'updatedAt', 'updatedBy', 'chunks'];
 const CHUNK = 45000;
 const COLLECTIONS = ['residents', 'cases', 'rota', 'library', 'settings'];
 const ROLES = ['owner', 'trainer', 'resident'];
-/** Bumped when the app needs to know what this server supports. */
-const SERVER_VERSION = 1;
+/** Bumped when the app needs to know what this server supports (2 = case review links). */
+const SERVER_VERSION = 2;
+const CASE_LINK_DAYS = 14;
+const ATTENDANCE = ['on', 'late', 'exc', 'unx'];
+const OUTCOMES = ['sat', 'help', 'taken'];
+const LP_RESULTS = ['learner', 'backup', 'fail'];
 
 // ---------------------------------------------------------------------------
 // Web app entry points
@@ -44,6 +51,13 @@ const API = {
   listPeople: listPeople_,
   addPerson: addPerson_,
   removePerson: removePerson_,
+  caseLink: caseLink_,
+};
+
+/** Reached with a case review link's token instead of an access key. */
+const SURVEY_API = {
+  caseSurvey: caseSurvey_,
+  submitSurvey: submitSurvey_,
 };
 
 /** The person whose access key signed the current request. */
@@ -53,6 +67,17 @@ function doPost(e) {
   let reply;
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    if (req.t !== undefined) {
+      const link = findCaseLink_(req.t);
+      if (!link) {
+        Utilities.sleep(400);
+        throw new Error('LINK_EXPIRED');
+      }
+      if (!Object.prototype.hasOwnProperty.call(SURVEY_API, req.fn)) throw new Error('Unknown action: ' + req.fn);
+      REQUEST_PERSON_ = { id: '', name: 'Case link', role: 'survey' };
+      reply = { ok: true, result: SURVEY_API[req.fn].apply(null, [link].concat(Array.isArray(req.args) ? req.args : [])) };
+      return ContentService.createTextOutput(JSON.stringify(reply)).setMimeType(ContentService.MimeType.JSON);
+    }
     const person = findPersonByKey_(req.key);
     if (!person) {
       Utilities.sleep(400); // slows down anyone guessing keys
@@ -180,6 +205,117 @@ function importDocs_(docs) {
     props.setProperties({ REV: String(rev), RESET_REV: String(rev) });
     return { imported: paths.length, rev: rev };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Case review links
+// ---------------------------------------------------------------------------
+
+/** A trainer's link for one case, kept for 14 days. Asking again for the same case gives the same link. */
+function caseLink_(ym, id) {
+  requireEditor_();
+  const path = 'cases/' + ym;
+  checkPath_(path);
+  const doc = readDocs_()[path];
+  if (!doc || !doc.data || !doc.data.items || !doc.data.items[id]) throw new Error('NOT_FOUND: case');
+  const props = PropertiesService.getScriptProperties();
+  const all = props.getProperties();
+  const now = Date.now();
+  let found = null;
+  Object.keys(all).forEach(k => {
+    if (k.indexOf('CL_') !== 0) return;
+    const l = parseJson_(all[k], null);
+    if (!l || l.exp < now) { props.deleteProperty(k); return; }
+    if (l.ym === ym && l.id === id) found = k.slice(3);
+  });
+  if (found) return { token: found, expires: new Date(JSON.parse(all['CL_' + found]).exp).toISOString() };
+  const token = Utilities.getUuid().replace(/-/g, '');
+  const exp = now + CASE_LINK_DAYS * 86400000;
+  props.setProperty('CL_' + token, JSON.stringify({ ym: ym, id: id, exp: exp, by: REQUEST_PERSON_.name }));
+  return { token: token, expires: new Date(exp).toISOString() };
+}
+
+function findCaseLink_(token) {
+  if (typeof token !== 'string' || !/^[a-f0-9]{32}$/.test(token)) return null;
+  const l = parseJson_(PropertiesService.getScriptProperties().getProperty('CL_' + token), null);
+  return l && l.exp > Date.now() ? l : null;
+}
+
+/** What the review link shows: this case only, residents' names and levels, and the program's own step names. */
+function caseSurvey_(link) {
+  const docs = readDocs_();
+  const doc = docs['cases/' + link.ym];
+  const c = doc && doc.data && doc.data.items && doc.data.items[link.id];
+  if (!c) throw new Error('CASE_GONE');
+  const names = {};
+  Object.keys(docs).forEach(path => {
+    const parts = path.split('/');
+    const d = docs[path].data;
+    if (parts[0] === 'residents' && d) names[parts[1]] = { name: d.name || '', level: d.baseline ? Number(d.baseline.level) || 0 : 0 };
+  });
+  const settings = (docs['settings/program'] || {}).data || {};
+  const keep = ['title', 'date', 'time', 'kind', 'list', 'cat', 'ladder', 'steps', 'specialist', 'specialistSteps', 'status', 'lp', 'out', 'extra', 'reviewedAt', 'reviewedBy'];
+  const out = {};
+  keep.forEach(k => { if (c[k] !== undefined) out[k] = c[k]; });
+  out.team = (c.team || []).map(m => ({ rid: m.rid, role: m.role, steps: m.steps || [], att: m.att || '', reason: m.reason || '' }));
+  return { case: out, names: names, customSteps: settings.customSteps || {}, specialists: settings.specialists || [] };
+}
+
+/**
+ * Records the specialist's answers on the case:
+ * {status: done|postponed|cancelled, specialist, att: {rid: {att, reason}}, extra: [rid], out: {step: {who, o}}, lp}
+ */
+function submitSurvey_(link, ans) {
+  if (!isObject_(ans)) throw new Error('Nothing to record.');
+  const status = ['done', 'postponed', 'cancelled'].indexOf(ans.status) >= 0 ? ans.status : null;
+  if (!status) throw new Error('Say whether the case was done, postponed or cancelled.');
+  const specialist = String(ans.specialist || '').trim().slice(0, 80);
+  if (status === 'done' && !specialist) throw new Error('Enter your name.');
+  REQUEST_PERSON_ = { id: '', name: (specialist || 'Specialist') + ' (case link)', role: 'survey' };
+  const r = writeDoc_('cases/' + link.ym, existing => {
+    const c = existing && existing.items && existing.items[link.id];
+    if (!c) throw new Error('CASE_GONE');
+    const team = c.team || [];
+    c.status = status;
+    c.reviewedAt = nowIso_();
+    c.reviewedBy = specialist;
+    c.reviewedVia = 'link';
+    if (status !== 'done') {
+      c.out = {}; c.extra = [];
+      team.forEach(m => { delete m.att; delete m.reason; delete m.attended; });
+      return existing;
+    }
+    c.specialist = specialist;
+    const att = isObject_(ans.att) ? ans.att : {};
+    team.forEach(m => {
+      const a = isObject_(att[m.rid]) ? att[m.rid] : {};
+      m.att = ATTENDANCE.indexOf(a.att) >= 0 ? a.att : 'on';
+      if (m.att === 'exc') m.reason = String(a.reason || 'other').slice(0, 40); else delete m.reason;
+      delete m.attended;
+    });
+    const inTeam = {};
+    team.forEach(m => { inTeam[m.rid] = true; });
+    const extras = (Array.isArray(ans.extra) ? ans.extra : []).map(String).filter((x, i, a) => x && !inTeam[x] && a.indexOf(x) === i).slice(0, 10);
+    const absent = team.filter(m => m.att === 'exc' || m.att === 'unx').map(m => m.rid);
+    // one absentee and one stand-in: the stand-in covered for them, which earns the cover bonus
+    c.extra = extras.map(x => ({ rid: x, for: absent.length === 1 && extras.length === 1 ? absent[0] : null }));
+    const present = {};
+    team.forEach(m => { if (m.att === 'on' || m.att === 'late') present[m.rid] = true; });
+    extras.forEach(x => { present[x] = true; });
+    const steps = (c.steps && c.steps.length) ? c.steps : [].concat.apply([], team.map(m => m.steps || [])).concat(c.specialistSteps || []);
+    const given = isObject_(ans.out) ? ans.out : {};
+    const out = {};
+    steps.forEach(k => {
+      const g = isObject_(given[k]) ? given[k] : null;
+      if (!g) return;
+      if (g.who === 'spec') out[k] = { who: 'spec' };
+      else if (present[g.who] && OUTCOMES.indexOf(g.o) >= 0) out[k] = { who: g.who, o: g.o };
+    });
+    c.out = out;
+    if (c.lp && LP_RESULTS.indexOf(ans.lp) >= 0) c.lp.result = ans.lp;
+    return existing;
+  });
+  return { status: status, rev: r.rev };
 }
 
 // ---------------------------------------------------------------------------

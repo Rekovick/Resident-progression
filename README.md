@@ -29,6 +29,7 @@ The same code also runs as an installable phone app, set up like Surgery Follow-
   - **owner**: everything, and manages links under Settings, People with access
   - **trainer** (specialists): reads and changes every record
   - **resident**: their own record in full, plus the rota, the case library and the theatre cases. The server removes other residents' scores, attendance, step outcomes and reasons before sending.
+- A trainer can send a **case review link** (Theatre, open a case, Send review link). It carries a token for that one case instead of a key: the supervising specialist taps whether the case happened, who came, and who did each step and how, and the case is recorded as reviewed. Links last 14 days and can't read anything else.
 - Records move from the claude.ai tracker with Settings, Copy all records, then in the app Settings, Replace all records (owner).
 - Setup steps for the owner are in the launch kit artifact.
 

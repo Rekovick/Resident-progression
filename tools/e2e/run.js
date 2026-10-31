@@ -76,6 +76,47 @@ const BASE = "http://localhost:8123/Resident-progression/";
   const stored = gas.api(ownerKey, "exportDocs")["cases/2026-11"];
   assert(stored && stored.items.c1.team.find(t => t.rid === "ahmed-saleh").att === "unx", "server keeps the no-show");
 
+  // 3b. a review link for a second case, answered on a phone without signing in
+  const linkUrl = await tr.evaluate(async () => {
+    const date = "2026-11-02", c = newCase("em"); applyLib(c, libFind("chronic subdural hematoma")); c.title = "Chronic subdural hematoma";
+    const rids = rotaDay(date).filter(id => run(S.residents[id]).level >= 1);
+    await saveCases({ c2: caseFromPlan({ date, time: "10:00", kind: "emergency", title: c.title, lib: c.libId, cat: "em", ladder: "csdh", steps: orderedSteps(c), specialist: "د.احمد العشرى" }, planEmergency(c, rids, "2026-11")) });
+    await sendReviewLink(allCases().find(x => x.id === "c2"));
+    return S.modal && S.modal.type === "qr" ? S.modal.draft.url : null;
+  });
+  assert(linkUrl && linkUrl.startsWith(BASE + "?r="), "trainer gets a review link for the case");
+  const token = JSON.parse(Buffer.from(linkUrl.split("?r=")[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString()).t;
+  const svCtx = await browser.newContext({ viewport: { width: 400, height: 860 } });
+  const sv = await svCtx.newPage(); const svErrs = []; sv.on("pageerror", e => svErrs.push(e.message));
+  await sv.route(SERVER, async route => route.fulfill({ status: 200, contentType: "application/json", body: gas.post(route.request().postData()) }));
+  await sv.goto(linkUrl);
+  await sv.waitForFunction(() => S.sv && S.sv.info, null, { timeout: 15000 });
+  await sv.screenshot({ path: "survey-start.png", fullPage: true });
+  const plan2 = await sv.evaluate(() => ({ team: S.sv.info.case.team.map(t => ({ rid: t.rid, steps: t.steps })), steps: svSteps(S.sv.info.case) }));
+  const noShow = plan2.team.find(t => t.steps.includes("em.closure")).rid;
+  await sv.click(`[data-act="sv-att"][data-r="${noShow}"][data-v="unx"]`);
+  for (const k of plan2.steps) {
+    await sv.locator(`[data-act="sv-who"][data-k="${k}"]`).first().click();
+    const good = sv.locator(`[data-act="sv-o"][data-k="${k}"][data-v="sat"]`);
+    if (await good.count()) await good.click();
+  }
+  await sv.fill("#sv-name", "د.احمد العشرى");
+  await sv.click('[data-act="sv-send"]');
+  await sv.waitForFunction(() => S.sv.sent, null, { timeout: 15000 });
+  await sv.screenshot({ path: "survey-sent.png" });
+  const c2 = gas.api(ownerKey, "exportDocs")["cases/2026-11"].items.c2;
+  assert(c2.status === "done" && c2.reviewedVia === "link" && c2.reviewedBy === "د.احمد العشرى", "the review link records the case as reviewed by the specialist");
+  assert(c2.team.find(t => t.rid === noShow).att === "unx", "the no-show tapped on the link is recorded");
+  assert(Object.keys(c2.out).length === plan2.steps.length && Object.values(c2.out).every(o => o.who === "spec" || o.o === "sat"), "every step has who did it and how it went");
+  assert(await sv.evaluate(() => { try { return !localStorage.getItem("residency-tracker-connections"); } catch (e) { return true; } }), "the review link saves nothing on the specialist's phone");
+  assert(JSON.parse(gas.post(JSON.stringify({ t: token, fn: "bootstrap" }))).ok === false, "a review link can't read the rest of the tracker");
+  assert(JSON.parse(gas.post(JSON.stringify({ t: "0".repeat(32), fn: "caseSurvey" }))).error === "LINK_EXPIRED", "a made-up review link is refused");
+  assert(!svErrs.length, "review page has no script errors " + svErrs.join("; "));
+  await tr.evaluate(() => S.db.reload());
+  await tr.evaluate(() => openReview(allCases().find(x => x.id === "c2")));
+  assert(await tr.evaluate(() => document.querySelector(".modal").innerText.includes("through the review link")), "the trainer's review shows it came from the link");
+  await tr.evaluate(() => closeModal());
+
   // 4. the owner's open app picks the case up by polling
   await owner.evaluate(() => S.db.reload());
   assert(await owner.evaluate(() => !!allCases().find(x => x.id === "c1")), "owner sees the trainer's case");

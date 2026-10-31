@@ -43,7 +43,7 @@ module.exports = function load(codePath) {
       flush() { pending = 0; },
     },
     PropertiesService: { getScriptProperties: () => ({
-      getProperty: k => (k in props ? props[k] : null), setProperty(k, v) { props[k] = String(v); return this; },
+      getProperty: k => (k in props ? props[k] : null), getProperties: () => Object.assign({}, props), setProperty(k, v) { props[k] = String(v); return this; },
       setProperties(o) { Object.keys(o).forEach(k => { props[k] = String(o[k]); }); return this; }, deleteProperty(k) { delete props[k]; return this; },
     }) },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() { if (pending) lockViolations.push(new Error("released lock with unsaved writes").stack); } }) },

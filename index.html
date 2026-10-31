@@ -322,6 +322,26 @@ details > summary { cursor: pointer; font-weight: 700; color: var(--accent); }
 .att-bad { color: var(--hold); font-weight: 700; font-size: 12px; }
 .att-mid { color: var(--warn); font-weight: 700; font-size: 12px; }
 
+/* case review link: big choices for a phone */
+.survey { max-width: 620px; width: 100%; margin: 0 auto; display: grid; gap: 14px; }
+.qcard { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.qcard h2 { font-size: 17px; }
+.qcard .q { font-family: var(--f-display); font-weight: 700; font-size: 15px; }
+.qcard .hint { font-size: 13px; color: var(--muted); }
+.qcard.missing { border-color: var(--hold); box-shadow: 0 0 0 2px var(--hold-soft); }
+.choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice { min-height: 44px; padding: 8px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); font-family: var(--f-display); font-weight: 700; font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.choice small { font-family: var(--f-body); font-weight: 400; font-size: 12px; color: var(--muted); }
+.choice[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.choice[aria-pressed="true"] small { color: inherit; opacity: .8; }
+.choice.bad[aria-pressed="true"] { background: var(--hold); border-color: var(--hold); color: var(--surface); }
+.choice.mid[aria-pressed="true"] { background: var(--warn); border-color: var(--warn); color: var(--surface); }
+.choice.good[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.attline { display: grid; gap: 6px; padding: 8px 0; border-top: 1px dashed var(--line); }
+.attline:first-of-type { border-top: 0; }
+.sendbar { position: sticky; bottom: max(12px, env(safe-area-inset-bottom, 0px)); display: grid; gap: 6px; }
+.sendbar .btn { min-height: 52px; font-size: 16px; }
+
 /* phone tab bar, like the other apps */
 .tabbar { display: none; }
 .tabbtn { position: relative; display: grid; justify-items: center; gap: 2px; border: 0; background: none; padding: 4px 2px 2px; cursor: pointer; color: var(--muted); font-family: var(--f-display); font-weight: 650; font-size: 11px; }
@@ -1268,11 +1288,11 @@ function noteMe(me) { const o = readConns(), c = o.list.find(x => x.k === S.conn
 function switchConn(k) { const o = readConns(); if (o.list.some(x => x.k === k)) { o.active = k; writeConns(o); location.replace(appBase()); } }
 const encodeConn = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 function decodeConn(v) {
-  try { const o = JSON.parse(decodeURIComponent(escape(atob(String(v).replace(/-/g, "+").replace(/_/g, "/"))))); return o && /^https:\/\//.test(o.s) && o.k ? o : null; } catch (e) { return null; }
+  try { const o = JSON.parse(decodeURIComponent(escape(atob(String(v).replace(/-/g, "+").replace(/_/g, "/"))))); return o && /^https:\/\//.test(o.s) && (o.k || o.t) ? o : null; } catch (e) { return null; }
 }
 function connFromText(t) {
-  const m = String(t || "").match(/[?&#]c=([A-Za-z0-9_-]+)/);
-  return m ? decodeConn(m[1]) : null;
+  const m = String(t || "").match(/[?&#]c=([A-Za-z0-9_-]+)/), o = m ? decodeConn(m[1]) : null;
+  return o && o.k ? o : null;
 }
 const appBase = () => location.origin + location.pathname;
 const linkFor = p => appBase() + "?c=" + encodeConn({ s: S.conn.s, k: p.key, n: p.name });
@@ -1324,6 +1344,99 @@ function remoteDB() {
       delete: () => write("deleteDoc", path, null),
     }),
   };
+}
+/* ---------- case review link: one case, answered by its supervising specialist ---------- */
+async function callT(fn, ...args) {
+  const r = await fetch(S.survey.s, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ t: S.survey.t, fn, args }), redirect: "follow" });
+  const j = await r.json();
+  if (!j.ok) { const e = new Error(j.error); e.code = String(j.error).split(":")[0]; throw e; }
+  return j.result;
+}
+const svName = rid => { const n = S.sv && S.sv.info && S.sv.info.names[rid]; return (n && n.name) || "A resident"; };
+const svLevel = rid => { const n = S.sv && S.sv.info && S.sv.info.names[rid]; return n ? n.level : 0; };
+const svSteps = c => (c.steps && c.steps.length ? c.steps : uniq(c.team.flatMap(t => t.steps || []).concat(c.specialistSteps || [])));
+const svPlanned = (c, k) => { const m = c.team.find(t => (t.steps || []).includes(k)); return m ? m.rid : (c.specialistSteps || []).includes(k) ? "spec" : ""; };
+function svStart(info) {
+  const c = info.case, done = c.status === "done";
+  const att = {}, out = {};
+  c.team.forEach(t => { att[t.rid] = { att: done && t.att ? t.att : "on", reason: t.reason || "" }; });
+  svSteps(c).forEach(k => {
+    const o = (c.out || {})[k];
+    if (done && o && o.who) out[k] = { who: o.who, o: o.o || null };
+    else { const p = svPlanned(c, k); out[k] = { who: p, o: null }; }
+  });
+  S.sv = { info, sent: false, err: "", missing: [], ans: { status: done ? "done" : (c.status === "postponed" || c.status === "cancelled" ? c.status : "done"), specialist: c.specialist || "", att, extra: (c.extra || []).map(x => x.rid), out, lp: c.lp ? c.lp.result || null : null } };
+}
+const svPresent = a => Object.keys(a.att).filter(r => a.att[r].att === "on" || a.att[r].att === "late").concat(a.extra);
+function surveyView() {
+  const v = S.sv;
+  if (!v) return `<div class="survey"><div class="qcard"><p class="muted">Loading the case…</p></div></div>`;
+  if (v.fatal) return `<div class="survey"><div class="qcard"><div class="htitle"><span class="tile tone-rose">${ic("alert")}</span><h1>Can't open this case</h1></div><p>${esc(v.fatal)}</p></div></div>`;
+  const c = v.info.case, a = v.ans, lp = isLP(c), steps = svSteps(c), present = svPresent(a);
+  const head = `<div class="qcard"><div class="htitle"><span class="tile tone-teal">${ic("clipboardCheck")}</span><div class="stack" style="gap:2px"><span class="eyebrow">Case review · ${esc(dayLabel(c.date))}${c.time ? " · " + esc(c.time) : ""}</span><h1 style="font-size:24px">${esc(caseTitle(c))}</h1></div></div>
+    <p class="small muted">Tap what happened. It goes straight to the residency tracker. Nothing here is shared with the residents.</p></div>`;
+  if (v.sent) return `<div class="survey">${head}<div class="qcard"><div class="htitle"><span class="tile tone-green">${ic("check")}</span><h2>Recorded. Thank you${a.specialist ? ", " + esc(a.specialist) : ""}.</h2></div>
+    <p class="small muted">${a.status === "done" ? "The case, who came and every step are in the tracker." : "The case is marked as " + a.status + "."} You can change your answers while this link works.</p>
+    <div><button class="btn" data-act="sv-again">${ic("pencil")}Change answers</button></div></div></div>`;
+  const ch = (act, val, cur, label, cls, extra) => `<button type="button" class="choice ${cls || ""}" data-act="${act}" data-v="${esc(val)}" ${extra || ""} aria-pressed="${cur === val}">${label}</button>`;
+  const status = `<div class="qcard"><span class="q">Did the operation happen?</span><div class="choices">${ch("sv-status", "done", a.status, ic("check") + "Done", "good")}${ch("sv-status", "postponed", a.status, ic("clock") + "Postponed", "mid")}${ch("sv-status", "cancelled", a.status, ic("x") + "Cancelled", "bad")}</div></div>`;
+  const name = `<div class="qcard ${v.missing.includes("name") ? "missing" : ""}"><label class="field"><span class="q" style="color:var(--ink)">Your name</span><input type="text" id="sv-name" list="spec-list" value="${esc(a.specialist)}" placeholder="Supervising specialist" autocomplete="name"></label></div>`;
+  if (a.status !== "done") return `<div class="survey">${head}${status}${name}${sendBar(v)}</div>`;
+  const others = Object.keys(v.info.names).filter(r => !a.att[r] && svLevel(r) >= 1).sort((x, y) => svLevel(y) - svLevel(x) || svName(x).localeCompare(svName(y)));
+  const came = `<div class="qcard"><span class="q">Who came?</span><span class="hint">Everyone planned is marked as came. Change only who didn't.</span>
+    ${c.team.map(t => { const x = a.att[t.rid]; return `<div class="attline"><div class="row" style="gap:8px">${pill(Math.min(6, svLevel(t.rid)))}<strong>${esc(svName(t.rid))}</strong></div>
+      <div class="choices">${ch("sv-att", "on", x.att, "Came", "good", `data-r="${t.rid}"`)}${ch("sv-att", "late", x.att, "Late", "mid", `data-r="${t.rid}"`)}${ch("sv-att", "unx", x.att, "Didn't come", "bad", `data-r="${t.rid}"`)}${ch("sv-att", "exc", x.att, "Excused", "", `data-r="${t.rid}"`)}</div></div>`; }).join("")}
+    <details ${a.extra.length ? "open" : ""}><summary>Someone else came</summary><div class="choices" style="margin-top:10px">${others.map(r => `<button type="button" class="choice" data-act="sv-extra" data-v="${r}" aria-pressed="${a.extra.includes(r)}">${esc(svName(r))}</button>`).join("")}</div></details></div>`;
+  let body;
+  if (lp) {
+    body = `<div class="qcard ${v.missing.includes("lp") ? "missing" : ""}"><span class="q">Lumbar puncture</span><span class="hint">Learner: ${esc(svName((c.lp || {}).learner))}${(c.lp || {}).backup ? " · backup: " + esc(svName(c.lp.backup)) : ""}</span>
+      <div class="choices">${ch("sv-lp", "learner", a.lp, "CSF by the learner", "good")}${ch("sv-lp", "backup", a.lp, "Backup took over", "mid")}${ch("sv-lp", "fail", a.lp, "No CSF", "bad")}</div></div>`;
+  } else {
+    body = steps.map((k, n) => {
+      const o = a.out[k], planned = svPlanned(c, k), miss = v.missing.includes(k);
+      // residents with steps on this case and stand-ins first; the rest behind "Someone else"
+      const working = r => a.extra.includes(r) || c.team.some(t => t.rid === r && (t.steps || []).length) || r === o.who;
+      const all = uniq((planned && planned !== "spec" && present.includes(planned) ? [planned] : []).concat(present));
+      const more = (v.more || {})[k], who = more ? all : all.filter(working), hidden = all.length - who.length;
+      return `<div class="qcard ${miss ? "missing" : ""}"><span class="hint">Step ${n + 1} of ${steps.length}</span><h2>${esc(stepLabel(k))}</h2>
+        <span class="q">Who did it?</span>
+        <div class="choices">${who.map(r => ch("sv-who", r, o.who, esc(svName(r)) + (r === planned ? " <small>planned</small>" : ""), "", `data-k="${k}"`)).join("")}${ch("sv-who", "spec", o.who, "I did" + (planned === "spec" ? " <small>planned</small>" : ""), "", `data-k="${k}"`)}${hidden ? `<button type="button" class="choice" data-act="sv-more" data-k="${k}">Someone else <small>${hidden}</small></button>` : ""}</div>
+        ${o.who && o.who !== "spec" ? `<span class="q">How did it go?</span><div class="choices">${ch("sv-o", "sat", o.o, ic("check") + "Done well", "good", `data-k="${k}"`)}${ch("sv-o", "help", o.o, "Needed help", "mid", `data-k="${k}"`)}${ch("sv-o", "taken", o.o, "I took over", "bad", `data-k="${k}"`)}</div>` : ""}</div>`;
+    }).join("") || `<div class="qcard"><p class="small muted">No resident steps on this case.</p></div>`;
+  }
+  return `<div class="survey">${head}${status}${came}${body}${name}${sendBar(v)}</div>`;
+}
+function sendBar(v) {
+  return `<div class="sendbar">${v.err ? `<div class="note hold">${esc(v.err)}</div>` : ""}<button class="btn primary" data-act="sv-send" ${v.busy ? "disabled" : ""}>${ic("check")}${v.busy ? "Sending…" : "Send to the tracker"}</button></div>`;
+}
+async function svSend() {
+  const v = S.sv, a = v.ans, c = v.info.case;
+  a.specialist = String(a.specialist || "").trim();
+  v.missing = [];
+  if (!a.specialist) v.missing.push("name");
+  if (a.status === "done") {
+    const present = svPresent(a);
+    if (isLP(c)) { if (!a.lp) v.missing.push("lp"); }
+    else svSteps(c).forEach(k => { const o = a.out[k]; if (!o.who || (o.who !== "spec" && (!present.includes(o.who) || !o.o))) v.missing.push(k); });
+  }
+  if (v.missing.length) { v.err = v.missing.includes("name") && v.missing.length === 1 ? "Enter your name." : "Answer the questions marked in red."; render(); const el = document.querySelector(".qcard.missing"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+  v.err = ""; v.busy = true; render();
+  try { await callT("submitSurvey", a); v.sent = true; }
+  catch (e) { v.err = e.code === "LINK_EXPIRED" ? "This link has expired. Ask for a new one." : e.code === "CASE_GONE" ? "This case was removed from the tracker." : "Couldn't send. Check your connection and try again."; }
+  v.busy = false; render(); window.scrollTo(0, 0);
+}
+function openQR(draft) {
+  openModal({ type: "qr", draft: Object.assign({ qr: "" }, draft) });
+  loadQR().then(q => { const qr = q(0, "M"); qr.addData(draft.url); qr.make(); if (S.modal && S.modal.type === "qr" && S.modal.draft.url === draft.url) { S.modal.draft.qr = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }); renderModal(); } }).catch(() => { if (S.modal && S.modal.type === "qr") { S.modal.draft.qr = "none"; renderModal(); } });
+}
+async function sendReviewLink(c) {
+  try {
+    const r = await call("caseLink", c.ym || c.date.slice(0, 7), c.id);
+    const url = appBase() + "?r=" + encodeConn({ s: S.conn.s, t: r.token });
+    const who = c.specialist ? c.specialist : "the supervising specialist";
+    openQR({ url, title: caseTitle(c), eyebrow: "Review link", sub: `For ${who}. They tap who came and who did each step; it works for this case only, until ${dateLabel(r.expires.slice(0, 10))}.`,
+      msg: `Please record the ${caseTitle(c)} on ${dayLabel(c.date)}: tap who came and who did each step. It takes a minute.\n${url}` });
+  } catch (e) { toast(dbErr(e)); }
 }
 let qrLib = null;
 function loadQR() {
@@ -1377,12 +1490,12 @@ function topBar() {
   const nav = resident ? [["me"], ["theatre"], ["rota"], ["rules"]] : [["roster"], ["theatre", due], ["rota"], ["fair"], ["scoring"], ["rules"], ["settings"]];
   const tabs = resident ? ["me", "theatre", "rota", "rules"] : ["roster", "theatre", "rota", "fair"];
   const cur = S.view === "resident" ? (resident ? "me" : "roster") : S.view === "baseline" ? "roster" : S.view;
-  const chip = S.mode === "connect" ? "" : S.me ? `<button class="modechip live" data-act="me-menu"><span class="dot"></span>${esc(S.me.name)} · ${ROLE_NAME[S.me.role]}</button>` : S.mode === "live" ? `<span class="modechip live"><span class="dot"></span>Shared${S.canEdit ? "" : " · view only"}</span>` : S.mode === "loading" ? `<span class="modechip"><span class="dot"></span>Connecting</span>` : `<span class="modechip"><span class="dot"></span>Not saved</span>`;
+  const chip = S.mode === "connect" || S.mode === "survey" ? "" : S.me ? `<button class="modechip live" data-act="me-menu"><span class="dot"></span>${esc(S.me.name)} · ${ROLE_NAME[S.me.role]}</button>` : S.mode === "live" ? `<span class="modechip live"><span class="dot"></span>Shared${S.canEdit ? "" : " · view only"}</span>` : S.mode === "loading" ? `<span class="modechip"><span class="dot"></span>Connecting</span>` : `<span class="modechip"><span class="dot"></span>Not saved</span>`;
   return `<header class="top"><div class="wrap top-in">
     <div class="toprow"><div class="brand">${logo()}<div><div class="b1">Neurosurgery Residency</div><div class="b2">${TEST_COPY ? "Test copy, not the real tracker" : "Progression and theatre tracker"}</div></div></div>${S.installEvt ? `<button class="modechip" data-act="install">${ic("download")}Install</button>` : ""}${chip}</div>
-    ${S.mode === "connect" ? "" : `<nav aria-label="Sections">${nav.map(([k, n]) => `<button class="navbtn" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}>${ic(SECTIONS[k].icon)}${SECTIONS[k].label}${n ? `<span class="cnt" aria-label="${n} to review">${n}</span>` : ""}</button>`).join("")}</nav>`}
+    ${S.mode === "connect" || S.mode === "survey" ? "" : `<nav aria-label="Sections">${nav.map(([k, n]) => `<button class="navbtn" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}>${ic(SECTIONS[k].icon)}${SECTIONS[k].label}${n ? `<span class="cnt" aria-label="${n} to review">${n}</span>` : ""}</button>`).join("")}</nav>`}
   </div></header>
-  ${S.mode === "connect" ? "" : `<nav class="tabbar" aria-label="Sections" style="grid-template-columns:repeat(${resident ? 4 : 5},minmax(0,1fr))">${tabs.map(k => `<button class="tabbtn tone-${SECTIONS[k].tone}" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}><span class="pip">${ic(SECTIONS[k].icon)}</span>${SECTIONS[k].short || SECTIONS[k].label}${k === "theatre" && due ? `<span class="cnt" aria-label="${due} to review">${due}</span>` : ""}</button>`).join("")}
+  ${S.mode === "connect" || S.mode === "survey" ? "" : `<nav class="tabbar" aria-label="Sections" style="grid-template-columns:repeat(${resident ? 4 : 5},minmax(0,1fr))">${tabs.map(k => `<button class="tabbtn tone-${SECTIONS[k].tone}" data-act="nav" data-v="${k}" ${cur === k ? 'aria-current="page"' : ""}><span class="pip">${ic(SECTIONS[k].icon)}</span>${SECTIONS[k].short || SECTIONS[k].label}${k === "theatre" && due ? `<span class="cnt" aria-label="${due} to review">${due}</span>` : ""}</button>`).join("")}
     ${resident ? "" : `<button class="tabbtn tone-slate" data-act="more" ${["scoring", "rules", "settings"].includes(cur) ? 'aria-current="page"' : ""}><span class="pip">${ic("more")}</span>More</button>`}</nav>`}`;
 }
 function logo() {
@@ -1398,6 +1511,7 @@ function banner() {
   return out.join("");
 }
 function view() {
+  if (S.mode === "survey") return surveyView();
   if (S.mode === "connect") return connectView();
   if (isResident() && !["theatre", "rota", "rules"].includes(S.view)) { S.view = "resident"; S.rid = S.me.rid; }
   if (S.view === "resident" && S.residents[S.rid]) return residentView();
@@ -1880,7 +1994,7 @@ function monthSel(field, value) {
 }
 function openModal(m) { S.modal = m; renderModal(); const f = modalRoot.querySelector("input:not([type=hidden]):not([type=checkbox]), select, textarea"); if (f) f.focus(); }
 function closeModal() { S.modal = null; modalRoot.innerHTML = ""; }
-const MODALS = () => ({ score: scoreModal, add: addModal, edit: addModal, import: importModal, exam: examModal, delete: deleteModal, em: emModal, list: listModal, review: reviewModal, tsign: tsignModal, lpbase: lpBaseModal, libedit: libEditModal, rota: rotaPasteModal, rday: rotaDayModal, copy: copyModal, more: moreModal, caseview: caseViewModal, plink: linkModal, me: meModal, impall: importAllModal, ppoff: offModal });
+const MODALS = () => ({ score: scoreModal, add: addModal, edit: addModal, import: importModal, exam: examModal, delete: deleteModal, em: emModal, list: listModal, review: reviewModal, tsign: tsignModal, lpbase: lpBaseModal, libedit: libEditModal, rota: rotaPasteModal, rday: rotaDayModal, copy: copyModal, more: moreModal, caseview: caseViewModal, plink: linkModal, me: meModal, impall: importAllModal, ppoff: offModal, qr: qrModal });
 function renderModal() {
   const m = S.modal; if (!m) { modalRoot.innerHTML = ""; return; }
   const scrollEl = modalRoot.querySelector(".scrim"), top = scrollEl ? scrollEl.scrollTop : 0;
@@ -2064,6 +2178,13 @@ function caseViewModal() {
     ${did.length ? `<div class="stack" style="gap:6px"><h3>What you did</h3>${did.map(([k, o]) => `<div class="row small"><span class="chip ${o.o === "sat" ? "ok" : o.o === "taken" ? "hold" : "warn"}">${esc(OUTCOMES[o.o] || "Done")}</span>${esc(stepLabel(k))}</div>`).join("")}</div>` : ""}</div>
   <div class="mfoot"><button class="btn" data-act="cv-copy">${ic("message")}Copy for WhatsApp</button><button class="btn primary" data-act="close">Close</button></div>`;
 }
+function qrModal() {
+  const d = S.modal.draft;
+  return `<div class="mhead"><span class="eyebrow">${esc(d.eyebrow)}</span><h2>${esc(d.title)}</h2><p class="small muted">${esc(d.sub)}</p></div>
+  <div class="mbody"><div style="display:grid;place-items:center">${d.qr === "none" ? `<p class="small muted">The QR code didn't load. Send the link instead.</p>` : d.qr ? `<div style="width:min(240px,70vw);background:#fff;padding:8px;border-radius:12px">${d.qr}</div>` : `<p class="small muted">Making the QR code…</p>`}</div>
+    <label class="field"><span>Link</span><input type="text" id="qr-url" readonly value="${esc(d.url)}"></label></div>
+  <div class="mfoot"><button class="btn" data-act="qr-copy">${ic("copy")}Copy link</button><a class="btn primary" href="https://wa.me/?text=${encodeURIComponent(d.msg)}" target="_blank" rel="noopener">${ic("message")}Send on WhatsApp</a></div>`;
+}
 function linkModal() {
   const d = S.modal.draft, p = d.p;
   const msg = `Your link to the Neurosurgery Residency Tracker${p.role === "resident" ? "" : " (trainer: you can record cases and reviews)"}. Open it on your phone, then add it to your home screen. Keep it to yourself.\n${d.url}`;
@@ -2236,8 +2357,8 @@ function reviewModal() {
       <label class="field"><span>Note (optional)</span><input type="text" id="rv-note" data-m="note" value="${esc(d.note || "")}"></label>`;
   }
   return `<div class="mhead"><span class="label">${esc(dayLabel(d.date))}${d.time ? " · " + esc(d.time) : ""} · ${d.kind === "elective" ? esc(d.list || "Elective") : "Emergency"}</span><h2>${esc(caseTitle(d))}</h2><div class="row">${catChip(d.cat)}${d.fileNo ? `<span class="small muted mono">File ${esc(d.fileNo)}</span>` : ""}</div></div>
-  <div class="mbody"><div class="stack" style="gap:8px"><h3>What happened to this case?</h3>${seg}</div>${body}${errLine()}</div>
-  <div class="mfoot">${S.canEdit ? `<button class="btn danger left" data-act="rv-del">Delete case</button>` : ""}<button class="btn" data-act="rv-copy">${ic("message")}Copy for WhatsApp</button><button class="btn" data-act="close">${S.canEdit ? "Cancel" : "Close"}</button>${S.canEdit ? `<button class="btn primary" data-act="rv-save">Save review</button>` : ""}</div>`;
+  <div class="mbody">${d.reviewedVia === "link" ? `<div class="note ok">${ic("clipboardCheck")} Recorded by ${esc(d.reviewedBy || "the specialist")} through the review link${d.reviewedAt ? ", " + esc(dateLabel(d.reviewedAt.slice(0, 10))) : ""}. You can change anything here.</div>` : ""}<div class="stack" style="gap:8px"><h3>What happened to this case?</h3>${seg}</div>${body}${errLine()}</div>
+  <div class="mfoot">${S.canEdit ? `<button class="btn danger left" data-act="rv-del">Delete case</button>` : ""}${S.app && S.canEdit ? `<button class="btn" data-act="rv-link">${ic("link")}Send review link</button>` : ""}<button class="btn" data-act="rv-copy">${ic("message")}Copy for WhatsApp</button><button class="btn" data-act="close">${S.canEdit ? "Cancel" : "Close"}</button>${S.canEdit ? `<button class="btn primary" data-act="rv-save">Save review</button>` : ""}</div>`;
 }
 async function saveReview() {
   const m = S.modal, d = m.draft;
@@ -2565,6 +2686,28 @@ document.addEventListener("click", async e => {
     case "rv-save": saveReview(); break;
     case "rv-del": if (await saveCases({ [m.id]: null })) { closeModal(); toast("Case deleted"); } break;
     case "rv-copy": copyText(caseText(m.draft)); break;
+    case "rv-link": { const c = allCases().find(x => x.id === m.id); if (c) sendReviewLink(c); break; }
+    case "qr-copy": copyText(m.draft.url); break;
+    case "sv-status": S.sv.ans.status = el.dataset.v; S.sv.err = ""; render(); break;
+    case "sv-att": {
+      const a = S.sv.ans, r = el.dataset.r; a.att[r].att = el.dataset.v;
+      if (el.dataset.v === "exc") a.att[r].reason = a.att[r].reason || "other";
+      const present = svPresent(a);
+      Object.values(a.out).forEach(o => { if (o.who && o.who !== "spec" && !present.includes(o.who)) { o.who = ""; o.o = null; } });
+      render(); break;
+    }
+    case "sv-extra": {
+      const a = S.sv.ans, r = el.dataset.v; a.extra = a.extra.includes(r) ? a.extra.filter(x => x !== r) : a.extra.concat([r]);
+      const present = svPresent(a);
+      Object.values(a.out).forEach(o => { if (o.who && o.who !== "spec" && !present.includes(o.who)) { o.who = ""; o.o = null; } });
+      render(); break;
+    }
+    case "sv-who": { const o = S.sv.ans.out[el.dataset.k]; if (o.who !== el.dataset.v) { o.who = el.dataset.v; o.o = null; } S.sv.missing = S.sv.missing.filter(x => x !== el.dataset.k || el.dataset.v !== "spec"); render(); break; }
+    case "sv-o": { S.sv.ans.out[el.dataset.k].o = el.dataset.v; S.sv.missing = S.sv.missing.filter(x => x !== el.dataset.k); render(); break; }
+    case "sv-lp": S.sv.ans.lp = el.dataset.v; S.sv.missing = S.sv.missing.filter(x => x !== "lp"); render(); break;
+    case "sv-send": svSend(); break;
+    case "sv-more": S.sv.more = Object.assign({}, S.sv.more, { [el.dataset.k]: true }); render(); break;
+    case "sv-again": S.sv.sent = false; render(); break;
     case "copy-day": copyText(dayText(el.dataset.v)); break;
     /* rota */
     case "rota-paste": openModal({ type: "rota", draft: { ym: S.rotaYM, text: "", map: {} } }); break;
@@ -2592,6 +2735,7 @@ function onField(e) {
   if (e.type === "change" && t.dataset.baselp) { patchResident(t.dataset.baselp, { lpBase: +t.value }, "Saved"); return; }
   if (e.type === "change" && t.dataset.bgrouplp && t.value !== "") { const ids = sortedIds().filter(id => run(S.residents[id]).level >= 1 && groupOf(lvlOf(id)) === t.dataset.bgrouplp); Promise.all(ids.map(id => patchResident(id, { lpBase: +t.value }))).then(() => toast(`Saved for ${ids.length} residents`)); return; }
   if (e.type === "change" && t.dataset.set) { saveSettings({ [t.dataset.set]: t.type === "checkbox" ? t.checked : +t.value }).then(ok => ok && toast("Saved")); return; }
+  if (t.id === "sv-name" && S.sv && S.sv.ans) { S.sv.ans.specialist = t.value; return; }
   const m = S.modal; if (!m) return;
   const d = m.draft;
   let rerender = false;
@@ -2657,6 +2801,19 @@ if (APP_BUILD) {
 render();
 (async () => {
   let db = null;
+  if (APP_BUILD && /[?&]r=/.test(location.search)) {
+    // a case review link: no account, nothing saved on this device, one case only
+    const m = location.search.match(/[?&]r=([A-Za-z0-9_-]+)/), o = m ? decodeConn(m[1]) : null;
+    S.mode = "survey";
+    if (!o || !o.t) { S.sv = { fatal: "This link is incomplete. Open the whole link you were sent." }; render(); return; }
+    S.survey = o; render();
+    try {
+      const info = await callT("caseSurvey");
+      S.settings = Object.assign(clone(SETTINGS_DEFAULT), { customSteps: info.customSteps || {}, specialists: info.specialists || [] });
+      svStart(info);
+    } catch (e) { S.sv = { fatal: e.code === "LINK_EXPIRED" ? "This link has expired or was replaced. Ask for a new one." : e.code === "CASE_GONE" ? "This case was removed from the tracker." : "Couldn't reach the tracker. Check your connection, then open the link again." }; }
+    render(); return;
+  }
   if (APP_BUILD) {
     const fromUrl = connFromText(location.search || location.hash);
     if (fromUrl) { saveConn(fromUrl); try { history.replaceState(null, "", appBase()); } catch (e) {} }
