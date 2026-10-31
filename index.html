@@ -303,7 +303,7 @@ details > summary { cursor: pointer; font-weight: 700; color: var(--accent); }
 .daygroup { display: grid; gap: 8px; }
 .dayhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding-bottom: 2px; }
 .dayhead .d { font-family: var(--f-display); font-weight: 750; font-stretch: 108%; font-size: 15px; }
-.dayhead .btn { margin-left: auto; }
+.dayhead .btn:first-of-type { margin-left: auto; }
 .casecard { position: relative; overflow: hidden; display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px 14px 20px; cursor: pointer; text-align: left; width: 100%; }
 .casecard::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--tone-fg, var(--line)); }
 .casecard:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
@@ -748,10 +748,15 @@ function arName(id) {
 }
 
 /* ---------- case log index ---------- */
+/* Runs fn as if the given cases were not in the log, so an edited list is re-planned without counting its own old plan. */
+function withoutCases(ids, fn) {
+  const prev = S.skip; S.skip = new Set(ids); invalidate();
+  try { return fn(); } finally { S.skip = prev; invalidate(); }
+}
 function allCases() {
   if (CACHE.cases) return CACHE.cases;
   const out = [];
-  Object.entries(S.caseDocs).forEach(([ym, doc]) => Object.entries((doc && doc.items) || {}).forEach(([id, c]) => { if (c) out.push(Object.assign({ id, ym }, c)); }));
+  Object.entries(S.caseDocs).forEach(([ym, doc]) => Object.entries((doc && doc.items) || {}).forEach(([id, c]) => { if (c && !(S.skip && S.skip.has(id))) out.push(Object.assign({ id, ym }, c)); }));
   out.sort((a, b) => (a.date + (a.time || "")) < (b.date + (b.time || "")) ? -1 : 1);
   return (CACHE.cases = out);
 }
@@ -1753,7 +1758,7 @@ function theatreView() {
     <button class="btn sm" data-act="ym" data-k="theatreYM" data-d="1" aria-label="Next month" ${ym >= ymAdd(ymNow(), 1) ? "disabled" : ""}>${ic("chevR")}</button></div>
   <div class="stats"><div class="stat tone-amber ${due ? "attn" : ""}"><span class="label">${ic("clock")}To review</span><span class="v">${due}</span></div><div class="stat tone-blue"><span class="label">${ic("calendar")}Coming up</span><span class="v">${upcoming}</span></div>
     <div class="stat tone-green"><span class="label">${ic("check")}Reviewed</span><span class="v">${done}</span></div><div class="stat tone-slate"><span class="label">${ic("x")}Postponed or cancelled</span><span class="v">${off}</span></div></div>
-  ${list.length ? `<div class="board">${dates.map(d => `<section class="daygroup"><div class="dayhead"><span class="d">${esc(dayLabel(d))}</span>${d === today ? `<span class="chip accent">Today</span>` : ""}<button class="btn ghost sm" data-act="copy-day" data-v="${d}">${ic("message")}Copy for WhatsApp</button></div>
+  ${list.length ? `<div class="board">${dates.map(d => `<section class="daygroup"><div class="dayhead"><span class="d">${esc(dayLabel(d))}</span>${d === today ? `<span class="chip accent">Today</span>` : ""}${S.canEdit ? uniq(list.filter(c => c.date === d && c.kind === "elective" && caseStatus(c) === "planned").map(c => c.list || "")).map(l => `<button class="btn ghost sm" data-act="edit-list" data-v="${d}" data-l="${esc(l)}">${ic("pencil")}Edit ${esc(l || "list")}</button>`).join("") : ""}<button class="btn ghost sm" data-act="copy-day" data-v="${d}">${ic("message")}Copy for WhatsApp</button></div>
       ${list.filter(c => c.date === d).map(caseCard).join("")}</section>`).join("")}</div>`
   : `<div class="card empty"><h2>No cases in ${ymLabel(ym)}</h2><p class="muted">${S.canEdit ? "Start with an emergency case or an elective list. Type the case name: the tracker remembers its category and steps for next time, takes the team from the on-call rota and splits the steps fairly." : "Cases appear here once the program director plans them."}</p>
       ${S.canEdit ? `<div class="row"><button class="btn" data-act="new-em">${ic("zap")}Emergency case</button><button class="btn primary" data-act="new-list">${ic("clipboardList")}Elective list</button></div>` : ""}</div>`}
@@ -2237,12 +2242,30 @@ function emModal() {
     ${plan ? `<div class="stack"><h3>Assignment</h3>${planHTML(plan)}</div>` : mode > 0 && !ready ? `<p class="small muted">Add the case's steps to see the assignment.</p>` : ""}${errLine()}</div>
   <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="em-save" ${plan && plan.team.length ? "" : "disabled"}>Save case</button></div>`;
 }
+function listPlans(d) {
+  const ym = (d.date || todayISO()).slice(0, 7), ready = d.cases.filter(c => caseMode(c) > 0);
+  if (ready.length !== d.cases.length || !d.cases.length) return [];
+  const unavailable = uniq(d.away.concat(listLockedRids(d)));
+  return d.editing ? withoutCases(d.ids, () => planList(d.cases, unavailable, ym)) : planList(d.cases, unavailable, ym);
+}
+// residents already on a reviewed case of the list being edited keep that place and get no other
+const listLockedRids = d => (d.locked || []).flatMap(id => ((allCases().find(c => c.id === id) || {}).team || []).map(t => t.rid));
+function openListEdit(date, list) {
+  const all = allCases().filter(c => c.kind === "elective" && c.date === date && (c.list || "") === (list || ""));
+  const open = all.filter(c => caseStatus(c) === "planned"), locked = all.filter(c => caseStatus(c) !== "planned");
+  if (!open.length) { toast("Every case on this list has been reviewed"); return; }
+  const kept = open.find(c => Array.isArray(c.away));
+  const away = kept ? kept.away.filter(id => S.residents[id]) : rotaDay(addDays(date, -1)).filter(id => S.residents[id]);
+  openModal({ type: "list", draft: { editing: true, ids: open.map(c => c.id), origDate: date, list: list || LISTS[0], date, away, locked: locked.map(c => c.id),
+    cases: open.map(c => Object.assign(newCase(c.cat), { id: c.id, title: c.title || "", ladder: c.ladder || "", steps: (c.steps || []).slice(), specialist: c.specialist || "", fileNo: c.fileNo || "", libId: c.lib || null, createdAt: c.createdAt })) } });
+}
 function listModal() {
-  const d = S.modal.draft, ym = (d.date || todayISO()).slice(0, 7);
-  const ready = d.cases.filter(c => caseMode(c) > 0);
-  const plans = ready.length === d.cases.length && d.cases.length ? planList(d.cases, d.away, ym) : [];
+  const d = S.modal.draft;
+  const plans = listPlans(d);
   const post = d.date ? rotaDay(addDays(d.date, -1)).filter(id => S.residents[id]) : [];
-  return `<div class="mhead"><span class="eyebrow">Elective</span><h2>Elective list</h2><p class="small muted">Fill the list the day before it runs. Residents below their monthly minimum go first, furthest behind first; spare places go by priority score. Each resident gets at most one place on a list.</p></div>
+  const locked = (d.locked || []).map(id => allCases().find(c => c.id === id)).filter(Boolean);
+  return `<div class="mhead"><span class="eyebrow">Elective</span><h2>${d.editing ? "Edit elective list" : "Elective list"}</h2><p class="small muted">${d.editing ? "Change, add or remove cases, then save: the whole list is planned again. The old plan doesn't count against anyone." : "Fill the list the day before it runs."} Residents below their monthly minimum go first, furthest behind first; spare places go by priority score. Each resident gets at most one place on a list.</p>
+    ${locked.length ? `<div class="note">Already reviewed, so left as they are: ${esc(locked.map(caseTitle).join(", "))}. Their teams keep their places.</div>` : ""}</div>
   <div class="mbody"><div class="fields">
     <label class="field"><span>List</span><select id="ls-list" data-m="list">${LISTS.map(l => `<option ${d.list === l ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     <label class="field"><span>Date</span><input type="date" id="ls-date" data-m="date" value="${esc(d.date)}" data-rerender></label></div>
@@ -2252,7 +2275,7 @@ function listModal() {
       <div><button class="btn" data-act="ls-add">${ic("plus")}Add a case</button></div></div>
     <div class="field"><span>On leave or post-call (skipped)</span>${post.length ? `<p class="small muted" style="margin-bottom:6px">On call the night before, so ticked as post-call: ${esc(post.map(nm).join(", "))}.</p>` : ""}${residentPicker(d.away, "away", id => run(S.residents[id]).level >= 1)}</div>
     ${plans.length ? `<div class="stack"><h3>Assignment</h3><div class="plan">${plans.map((p, k) => planHTML(p, d.cases[k])).join("")}</div></div>` : ""}${errLine()}</div>
-  <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="ls-save" ${plans.length ? "" : "disabled"}>Save list</button></div>`;
+  <div class="mfoot"><button class="btn" data-act="close">Cancel</button><button class="btn primary" data-act="ls-save" ${plans.length || (d.editing && !d.cases.length) ? "" : "disabled"}>${d.editing ? "Save changes" : "Save list"}</button></div>`;
 }
 function libEditModal() {
   const d = S.modal.draft, e = d.libId ? libById(d.libId) : null;
@@ -2310,7 +2333,7 @@ function reviewModal() {
   }
   return `<div class="mhead"><span class="label">${esc(dayLabel(d.date))}${d.time ? " · " + esc(d.time) : ""} · ${d.kind === "elective" ? esc(d.list || "Elective") : "Emergency"}</span><h2>${esc(caseTitle(d))}</h2><div class="row">${catChip(d.cat)}${d.fileNo ? `<span class="small muted mono">File ${esc(d.fileNo)}</span>` : ""}</div></div>
   <div class="mbody"><div class="stack" style="gap:8px"><h3>What happened to this case?</h3>${seg}</div>${body}${errLine()}</div>
-  <div class="mfoot">${S.canEdit ? `<button class="btn danger left" data-act="rv-del">Delete case</button>` : ""}<button class="btn" data-act="rv-copy">${ic("message")}Copy for WhatsApp</button><button class="btn" data-act="close">${S.canEdit ? "Cancel" : "Close"}</button>${S.canEdit ? `<button class="btn primary" data-act="rv-save">Save review</button>` : ""}</div>`;
+  <div class="mfoot">${S.canEdit ? `<button class="btn danger left" data-act="rv-del">Delete case</button>` : ""}${S.canEdit && d.kind === "elective" && caseStatus(allCases().find(c => c.id === m.id) || {}) === "planned" ? `<button class="btn" data-act="edit-list" data-v="${esc(d.date)}" data-l="${esc(d.list || "")}">${ic("pencil")}Edit list</button>` : ""}<button class="btn" data-act="rv-copy">${ic("message")}Copy for WhatsApp</button><button class="btn" data-act="close">${S.canEdit ? "Cancel" : "Close"}</button>${S.canEdit ? `<button class="btn primary" data-act="rv-save">Save review</button>` : ""}</div>`;
 }
 async function saveReview() {
   const m = S.modal, d = m.draft;
@@ -2586,17 +2609,23 @@ document.addEventListener("click", async e => {
     }
     case "new-list": { const date = addDays(todayISO(), 1); openModal({ type: "list", draft: { list: weekday(date) === "Wed" ? "Wednesday list" : weekday(date) === "Sat" ? "Saturday list" : "Sunday list", date, cases: [newCase("el")], away: rotaDay(addDays(date, -1)).filter(id => S.residents[id]) } }); break; }
     case "ls-add": m.draft.cases.push(newCase("el")); renderModal(); break;
+    case "edit-list": openListEdit(el.dataset.v, el.dataset.l || ""); break;
     case "ls-del": m.draft.cases.splice(+el.dataset.k, 1); renderModal(); break;
     case "ls-save": {
       const d = m.draft;
       if (!d.date) { m.err = "Choose the date."; renderModal(); break; }
       if (d.cases.some(c => !(c.title || "").trim())) { m.err = "Name every case, or remove the empty one."; renderModal(); break; }
-      const plans = planList(d.cases, d.away, d.date.slice(0, 7)), map = {};
+      if (!d.cases.length && !d.editing) { m.err = "Add a case."; renderModal(); break; }
+      const plans = d.cases.length ? listPlans(d) : [], map = {};
+      // an edited list keeps its case ids unless it moves to another month, which lives in another record
+      const sameMonth = d.editing && d.date.slice(0, 7) === d.origDate.slice(0, 7);
+      if (d.editing) d.ids.forEach(id => { map[id] = null; });
       for (let k = 0; k < d.cases.length; k++) {
-        const c = d.cases[k], lib = await rememberCase(c);
-        map["c" + uid()] = caseFromPlan({ date: d.date, kind: "elective", list: d.list, title: c.title.trim(), lib, cat: c.cat, ladder: c.ladder || "", steps: orderedSteps(c), specialist: (c.specialist || "").trim(), fileNo: (c.fileNo || "").trim() }, plans[k]);
+        const c = d.cases[k], lib = await rememberCase(c), id = c.id && sameMonth ? c.id : "c" + uid();
+        map[id] = caseFromPlan({ date: d.date, kind: "elective", list: d.list, title: c.title.trim(), lib, cat: c.cat, ladder: c.ladder || "", steps: orderedSteps(c), specialist: (c.specialist || "").trim(), fileNo: (c.fileNo || "").trim(), away: d.away.slice() }, plans[k]);
+        if (c.createdAt) map[id].createdAt = c.createdAt;
       }
-      if (await saveCases(map)) { closeModal(); S.view = "theatre"; S.ttab = "cases"; S.theatreYM = d.date.slice(0, 7); render(); toast(`${d.cases.length} case${d.cases.length === 1 ? "" : "s"} saved`); }
+      if (await saveCases(map)) { closeModal(); S.view = "theatre"; S.ttab = "cases"; S.theatreYM = d.date.slice(0, 7); render(); toast(d.editing ? "List updated" : `${d.cases.length} case${d.cases.length === 1 ? "" : "s"} saved`); }
       break;
     }
     /* theatre: case editor */
