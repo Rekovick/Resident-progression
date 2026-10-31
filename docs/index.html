@@ -517,6 +517,10 @@ const STEP = {
   "ec.debulk": ["Tumour devascularisation and debulking", 10, 8], "ec.dissect": ["Dissection from cortex, preserving draining veins", 10, 8],
   "ec.attach": ["Sinus and falx attachment management (Simpson grade)", 10, 8], "ec.dura": ["Duraplasty and dural closure", 5, 4],
   "ec.bone": ["Bone flap fixation", 5, 4],
+  "pf.pos": ["Prone positioning and pin fixation", 5, 4], "pf.muscle": ["Midline avascular plane and suboccipital muscle exposure", 5, 4],
+  "pf.crani": ["Suboccipital craniotomy and foramen magnum opening", 8, 6], "pf.c1": ["C1 posterior arch removal", 5, 4],
+  "pf.duraopen": ["Y-shaped dural opening and cisterna magna release", 5, 4], "pf.dissect": ["Dissection from the brainstem and fourth ventricle floor", 10, 8],
+  "pf.layers": ["Layered muscle and fascia closure", 5, 4],
 };
 const SHARED_NOTE = { "em.closure": "Shared across emergency cases", "em.burr": "Shared across emergency cases", "em.incision": "Shared across emergency cases", "em.hemo": "Shared across emergency cases", "ab.exp": "Shared with TP shunt", "sp.closure": "Shared by spine and TP shunt; opens after 10 emergency closures" };
 const PROCS = {
@@ -532,10 +536,10 @@ const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
 const CASE_LADDERS = ["cranio", "vent", "csdh", "lp", "spine", "tp"];
 const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
 /* Built-in steps outside the ladders, offered in the case editor's step picker. */
-const EXTRA_STEPS = [{ name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone"] }];
+const EXTRA_STEPS = [{ name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers"] }];
 /* Level ceilings: the highest steps each level may perform. */
 const CEIL_J = ["em.closure", "em.burr", "em.incision", "em.hemo", "sp.closure"];
-const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.dura", "ec.bone"]);
+const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.layers"]);
 const CEIL = { J: new Set(CEIL_J), M: new Set(CEIL_M), S: new Set(Object.keys(STEP)) };
 const groupOf = lvl => lvl >= 6 ? "S" : lvl >= 4 ? "M" : lvl >= 1 ? "J" : "A";
 const GROUP_NAME = { J: "Junior", M: "Midsenior", S: "Senior", A: "Attached" };
@@ -560,6 +564,7 @@ const LIB_BUILTIN = [
   { id: "b-spine", name: "Spine fixation", cat: "el", ladder: "spine", steps: PROCS.spine.steps },
   { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: PROCS.tp.steps },
   { id: "b-psm", name: "Parasagittal meningioma excision", cat: "adv", ladder: "", steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
+  { id: "b-pft", name: "Posterior fossa tumor excision", cat: "adv", ladder: "", steps: ["pf.pos", "em.incision", "pf.muscle", "em.burr", "pf.crani", "pf.c1", "em.hemo", "pf.duraopen", "ec.debulk", "pf.dissect", "cr.final", "ec.dura", "ec.bone", "pf.layers", "em.closure"] },
 ];
 const ATT = { on: "On time", late: "Late", exc: "Excused", unx: "No-show" };
 const EXCUSES = { postcall: "Post-call", er: "Covering the ER", theatre: "In another theatre", sick: "Sick", leave: "Official leave", called: "Called by a consultant", other: "Other accepted reason" };
