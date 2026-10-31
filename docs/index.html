@@ -476,6 +476,7 @@ const RULE = {
   reliableRate: 0.9, reliableMin: 3, wReliable: 5, // reliable residents get +5 priority for spare places
   liftFactor: 1.5,   // a step above the ceiling opens after 1.5x its normal count of satisfactory performances
   shiftStart: 8,     // the on-call day starts at 08:00; a case before then belongs to the previous day's shift
+  learnShare: 0.5,   // a resident learning a step done in several places in one case (two sides, four screws) takes this share of the places; the rest go on
 };
 const REQ_TEXT = {
   att: ["Knows the hospital layout", "Can write an admission", "Can write a blood reservation", "Knows the principles of documentation", "Knows how to inform a senior with patient data"],
@@ -562,6 +563,7 @@ const LIB_BUILTIN = [
   { id: "b-csdh", name: "Chronic subdural hematoma", cat: "em", ladder: "csdh", steps: PROCS.csdh.steps },
   { id: "b-lp", name: "Lumbar puncture", cat: "em", ladder: "lp", steps: [] },
   { id: "b-spine", name: "Spine fixation", cat: "el", ladder: "spine", steps: PROCS.spine.steps },
+  { id: "b-lfix1", name: "Lumbar fixation without cage, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam"] },
   { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: PROCS.tp.steps },
   { id: "b-psm", name: "Parasagittal meningioma excision", cat: "adv", ladder: "", steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
   { id: "b-pft", name: "Posterior fossa tumor excision", cat: "adv", ladder: "", steps: ["pf.pos", "em.incision", "pf.muscle", "em.burr", "pf.crani", "pf.c1", "em.hemo", "pf.duraopen", "ec.debulk", "pf.dissect", "cr.final", "ec.dura", "ec.bone", "pf.layers", "em.closure"] },
@@ -696,7 +698,14 @@ const catTone = id => CAT_TONES[id] || CUSTOM_TONES[Math.max(0, (S.settings.cate
 const catChip = id => `<span class="chip tone tone-${catTone(id)}">${esc(catOf(id).name)}</span>`;
 
 /* steps: built-in counters plus the program's own steps added from the case library */
+/* A step can be done in several places in one case: "sp.muscle@L" is the left side of muscle separation,
+   "sp.screw@UL" the upper left screw. Each place is assigned and recorded on its own and counts toward the step's one counter. */
+const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right" };
+const baseKey = k => String(k || "").split("@")[0];
+const placeOf = k => { const i = String(k || "").indexOf("@"); return i < 0 ? "" : k.slice(i + 1); };
 function stepDef(k) {
+  const place = placeOf(k);
+  if (place) { const d = stepDef(baseKey(k)); return Object.assign({}, d, { label: `${d.label} (${PLACE[place] || place})` }); }
   if (STEP[k]) return { label: STEP[k][0], n: STEP[k][1], nb: STEP[k][2] };
   const c = (S.settings.customSteps || {})[k];
   const n = c ? Math.max(1, +c.n || 5) : 5;
@@ -726,8 +735,8 @@ const isLP = c => c.ladder === "lp" || c.proc === "lp";
 function caseSeq(c) { return c.ladder && PROCS[c.ladder] && PROCS[c.ladder].steps.length ? PROCS[c.ladder].steps : (c.steps || []); }
 function orderedSteps(c) {
   const seq = caseSeq(c), st = c.steps || [];
-  const pos = k => { const i = seq.indexOf(k); return i < 0 ? 1000 + st.indexOf(k) : i; };
-  return st.slice().sort((a, b) => pos(a) - pos(b));
+  const pos = k => { let i = seq.indexOf(k); if (i < 0) i = seq.indexOf(baseKey(k)); return i < 0 ? 1000 + st.indexOf(k) : i; };
+  return st.slice().sort((a, b) => pos(a) - pos(b) || st.indexOf(a) - st.indexOf(b));
 }
 
 /* ---------- on-call rota ---------- */
@@ -761,7 +770,7 @@ function cx() {
   const by = {};
   const get = id => by[id] || (by[id] = { perf: {}, opp: {}, months: {}, lastDate: "", lp: 0, log: [] });
   const month = (r, ym) => r.months[ym] || (r.months[ym] = { assigned: 0, attended: 0, unx: [], covers: [], late: 0, exc: 0 });
-  const turn = (r, k) => { r.opp[k] = (r.opp[k] || 0) + 1; };
+  const turn = (r, k) => { k = baseKey(k); r.opp[k] = (r.opp[k] || 0) + 1; };
   allCases().forEach(c => {
     const st = caseStatus(c);
     if (st === "postponed" || st === "cancelled") return;
@@ -789,7 +798,7 @@ function cx() {
       const r = get(o.who);
       turn(r, k);
       if (!o.o) return;
-      const s = r.perf[k] || (r.perf[k] = { sat: 0, help: 0, taken: 0, specs: new Set() });
+      const b = baseKey(k), s = r.perf[b] || (r.perf[b] = { sat: 0, help: 0, taken: 0, specs: new Set() });
       s[o.o] = (s[o.o] || 0) + 1;
       if (o.o === "sat" && spec) s.specs.add(spec);
       r.log.push({ date: c.date, kind: "step", o: o.o, k, id: c.id });
@@ -973,24 +982,26 @@ function surg(res) {
   if (res._id && CACHE[key]) return CACHE[key];
   const E = run(res), C = cxOf(res._id), base = res.stepBase || {};
   const g = groupOf(E.level), ceil = CEIL[g] || new Set();
-  const need = k => { const d = stepDef(k); return E.boost ? d.nb : d.n; };
-  const stat = k => C.perf[k] || { sat: 0, help: 0, taken: 0, specs: new Set() };
-  const turns = k => (k && C.opp[k]) || 0;
-  const complete = k => !!base[k] || (stat(k).sat >= need(k) && stat(k).specs.size >= 2);
+  // a step done in several places counts as one step: every check below goes by the base step
+  const B = baseKey;
+  const need = k => { const d = stepDef(B(k)); return E.boost ? d.nb : d.n; };
+  const stat = k => C.perf[B(k)] || { sat: 0, help: 0, taken: 0, specs: new Set() };
+  const turns = k => (k && C.opp[B(k)]) || 0;
+  const complete = k => !!base[B(k)] || (stat(k).sat >= need(k) && stat(k).specs.size >= 2);
   // a starting level is provisional until the coordinator confirms it or the resident performs the step satisfactorily
-  const provisional = k => !!(base[k] && base[k].prov && !base[k].ok && stat(k).sat < 1);
-  const inCeil = k => { const d = stepDef(k); return d.custom ? GRANK[g] >= GRANK[d.min || "S"] : ceil.has(k); };
+  const provisional = k => { const b = base[B(k)]; return !!(b && b.prov && !b.ok && stat(k).sat < 1); };
+  const inCeil = k => { const d = stepDef(B(k)); return d.custom ? GRANK[g] >= GRANK[d.min || "S"] : ceil.has(B(k)); };
   // steps above the ceiling that were recorded at the start open once the count reaches 1.5x the normal count
-  const liftAt = k => Math.ceil(stepDef(k).n * RULE.liftFactor);
-  const liftCount = k => (base[k] ? (+base[k].n || stepDef(k).n) : 0) + stat(k).sat;
+  const liftAt = k => Math.ceil(stepDef(B(k)).n * RULE.liftFactor);
+  const liftCount = k => (base[B(k)] ? (+base[B(k)].n || stepDef(B(k)).n) : 0) + stat(k).sat;
   const lifted = k => g !== "A" && !inCeil(k) && liftCount(k) >= liftAt(k);
-  const prereqOK = k => k !== "sp.closure" || complete("em.closure");
+  const prereqOK = k => B(k) !== "sp.closure" || complete("em.closure");
   const seqOf = p => Array.isArray(p) ? p : PROCS[p].steps;
   const learnIndex = p => { const st = seqOf(p); const ix = st.findIndex(k => !complete(k)); return ix < 0 ? st.length : ix; };
   const learning = p => seqOf(p)[learnIndex(p)] || null;
   // the first step above the ceiling in a ladder, which the boost opens with the specialist scrubbed
   const boostStep = p => { if (!E.boost || E.holdNow) return null; return seqOf(p).find(k => !inCeil(k) && !lifted(k)) || null; };
-  const allowed = (p, k) => (inCeil(k) || lifted(k) || k === boostStep(p)) && prereqOK(k);
+  const allowed = (p, k) => { const bs = boostStep(p); return (inCeil(k) || lifted(k) || (!!bs && B(k) === B(bs))) && prereqOK(k); };
   const ladderDone = p => PROCS[p].steps.every(complete);
   const lpBackupAt = E.boost ? RULE.lpBackupBoost : RULE.lpBackup;
   const out = { E, g, ceil, need, stat, turns, complete, provisional, inCeil, lifted, liftAt, liftCount, prereqOK, learnIndex, learning, boostStep, allowed, ladderDone, lp: C.lp + (+res.lpBase || 0), lpBackupAt, lastDate: C.lastDate };
@@ -1009,7 +1020,7 @@ function priority(id, seq, caseSteps, ym, extraCount) {
   const merit = (E.avg3 != null ? E.avg3 : RULE.openingPoints) * RULE.wMerit;
   let learn = 0;
   const L = seq.length ? st.learning(seq) : null;
-  if (L && caseSteps.includes(L) && st.allowed(seq, L)) learn = RULE.wLearn;
+  if (L && caseSteps.some(k => baseKey(k) === baseKey(L)) && st.allowed(seq, L)) learn = RULE.wLearn;
   else if (caseSteps.some(k => st.complete(k))) learn = RULE.wLearnDone;
   const min = SURG_MIN[LEVELS[E.level].key] || 0;
   const count = casesThisMonth(id, ym) + (extraCount || 0);
@@ -1040,16 +1051,20 @@ function splitSteps(seq, caseSteps, members) {
   let pos = 0;
   const team = ordered.map(m => {
     const st = surg(S.residents[m.id]);
-    const L = st.learning(seq);
-    const learnAt = L ? caseSteps.indexOf(L) : caseSteps.length - 1;
+    const L = st.learning(seq), lb = L ? baseKey(L) : null;
+    // the step being learned may be done in several places: the learner takes their share of the places still open
+    const places = lb ? caseSteps.map((k, n) => baseKey(k) === lb ? n : -1).filter(n => n >= 0) : [];
+    const open = places.filter(n => n >= pos), share = Math.max(1, Math.ceil(places.length * RULE.learnShare));
+    const learnAt = !L ? caseSteps.length - 1 : !places.length ? -1 : open.length ? open[Math.min(share, open.length) - 1] : places[places.length - 1];
     const upto = learnAt < 0 ? caseSteps.findIndex(k => !st.complete(k)) - 1 : learnAt;
     let end = pos - 1;
     for (let k = pos; k <= Math.min(upto < 0 ? caseSteps.length - 1 : upto, caseSteps.length - 1); k++) { if (!st.allowed(seq, caseSteps[k])) break; end = k; }
     const steps = caseSteps.slice(pos, end + 1);
     pos = Math.max(pos, end + 1);
-    const boosted = steps.filter(k => k === st.boostStep(seq));
+    const bs = st.boostStep(seq), boosted = steps.filter(k => bs && baseKey(k) === baseKey(bs));
     const liftedNow = steps.filter(k => st.lifted(k));
-    let why = steps.length ? (L && steps.includes(L) ? `Learning ${stepLabel(L).toLowerCase()}` : "Completed steps up to their ceiling") : "Observes: no steps left at their position on this ladder";
+    const mine = lb ? steps.filter(k => baseKey(k) === lb).length : 0;
+    let why = steps.length ? (mine ? `Learning ${stepLabel(lb).toLowerCase()}${places.length > 1 ? ` (${mine} of ${places.length})` : ""}` : "Completed steps up to their ceiling") : "Observes: no steps left at their position on this ladder";
     if (boosted.length) why += `. ${stepLabel(boosted[0])} is one step above their ceiling with the boost, so the specialist must be scrubbed`;
     if (liftedNow.length) why += `. ${stepLabel(liftedNow[0])} is above their level's ceiling, opened by their case count`;
     return Object.assign({}, m, { steps, role: steps.length ? "performs" : "observes", why: (m.why ? m.why + ". " : "") + why });
