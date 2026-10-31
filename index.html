@@ -460,7 +460,6 @@ const RULE = {
   reliableRate: 0.9, reliableMin: 3, wReliable: 5, // reliable residents get +5 priority for spare places
   liftFactor: 1.5,   // a step above the ceiling opens after 1.5x its normal count of satisfactory performances
   shiftStart: 8,     // the on-call day starts at 08:00; a case before then belongs to the previous day's shift
-  learnShare: 0.5,   // a resident learning a step done in several places in one case (two sides, four screws) takes this share of the places; the rest go on
 };
 const REQ_TEXT = {
   att: ["Knows the hospital layout", "Can write an admission", "Can write a blood reservation", "Knows the principles of documentation", "Knows how to inform a senior with patient data"],
@@ -686,6 +685,15 @@ const catChip = id => `<span class="chip tone tone-${catTone(id)}">${esc(catOf(i
    "sp.screw@UL" the upper left screw. Each place is assigned and recorded on its own and counts toward the step's one counter. */
 const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right" };
 const baseKey = k => String(k || "").split("@")[0];
+/* Places of one step are shared, never all to one resident. The lead takes the majority (one of two sides,
+   three of four screws); the rest go to the first resident on the team from "next" who may do the step, else to the specialist.
+   lead: the level that leads when it is on the team and may do the step (otherwise whoever the ladder gives the first place).
+   below: levels that may take their share under their ceiling, with the specialist scrubbed. */
+const PLACE_SHARE = {
+  "sp.muscle": { next: ["J", "S", "M"] },        // the other side: a junior already allowed the step, else the senior
+  "sp.screw": { lead: "S", next: ["M"], below: ["M"] }, // the senior places most screws, the midsenior the rest
+};
+const placeMajority = n => n <= 2 ? 1 : Math.floor(n / 2) + 1;
 const placeOf = k => { const i = String(k || "").indexOf("@"); return i < 0 ? "" : k.slice(i + 1); };
 function stepDef(k) {
   const place = placeOf(k);
@@ -1036,10 +1044,9 @@ function splitSteps(seq, caseSteps, members) {
   const team = ordered.map(m => {
     const st = surg(S.residents[m.id]);
     const L = st.learning(seq), lb = L ? baseKey(L) : null;
-    // the step being learned may be done in several places: the learner takes their share of the places still open
+    // the step being learned may be done in several places: the ladder takes them all here, and sharePlaces splits them after
     const places = lb ? caseSteps.map((k, n) => baseKey(k) === lb ? n : -1).filter(n => n >= 0) : [];
-    const open = places.filter(n => n >= pos), share = Math.max(1, Math.ceil(places.length * RULE.learnShare));
-    const learnAt = !L ? caseSteps.length - 1 : !places.length ? -1 : open.length ? open[Math.min(share, open.length) - 1] : places[places.length - 1];
+    const learnAt = !L ? caseSteps.length - 1 : places.length ? places[places.length - 1] : -1;
     const upto = learnAt < 0 ? caseSteps.findIndex(k => !st.complete(k)) - 1 : learnAt;
     let end = pos - 1;
     for (let k = pos; k <= Math.min(upto < 0 ? caseSteps.length - 1 : upto, caseSteps.length - 1); k++) { if (!st.allowed(seq, caseSteps[k])) break; end = k; }
@@ -1047,13 +1054,39 @@ function splitSteps(seq, caseSteps, members) {
     pos = Math.max(pos, end + 1);
     const bs = st.boostStep(seq), boosted = steps.filter(k => bs && baseKey(k) === baseKey(bs));
     const liftedNow = steps.filter(k => st.lifted(k));
-    const mine = lb ? steps.filter(k => baseKey(k) === lb).length : 0;
-    let why = steps.length ? (mine ? `Learning ${stepLabel(lb).toLowerCase()}${places.length > 1 ? ` (${mine} of ${places.length})` : ""}` : "Completed steps up to their ceiling") : "Observes: no steps left at their position on this ladder";
-    if (boosted.length) why += `. ${stepLabel(boosted[0])} is one step above their ceiling with the boost, so the specialist must be scrubbed`;
-    if (liftedNow.length) why += `. ${stepLabel(liftedNow[0])} is above their level's ceiling, opened by their case count`;
+    const mine = lb ? steps.some(k => baseKey(k) === lb) : false;
+    let why = steps.length ? (mine ? `Learning ${stepLabel(lb).toLowerCase()}` : "Completed steps up to their ceiling") : "Observes: no steps left at their position on this ladder";
+    if (boosted.length) why += `. ${stepLabel(baseKey(boosted[0]))} is one step above their ceiling with the boost, so the specialist must be scrubbed`;
+    if (liftedNow.length) why += `. ${stepLabel(baseKey(liftedNow[0]))} is above their level's ceiling, opened by their case count`;
     return Object.assign({}, m, { steps, role: steps.length ? "performs" : "observes", why: (m.why ? m.why + ". " : "") + why });
   });
-  return { team, specialistSteps: caseSteps.slice(pos) };
+  return sharePlaces(seq, caseSteps, team, caseSteps.slice(pos));
+}
+/* Splits each step done in several places so no resident takes all of them (see PLACE_SHARE). */
+function sharePlaces(seq, caseSteps, team, specialistSteps) {
+  const groups = {};
+  caseSteps.forEach(k => { if (placeOf(k)) (groups[baseKey(k)] = groups[baseKey(k)] || []).push(k); });
+  let spec = specialistSteps.slice();
+  Object.entries(groups).forEach(([b, places]) => {
+    if (places.length < 2) return;
+    const rule = PLACE_SHARE[b] || {}, next = rule.next || ["J", "M", "S"], below = rule.below || [];
+    const can = m => surg(S.residents[m.id]).allowed(seq, places[0]) || below.includes(m.g);
+    const lead = (rule.lead && team.find(m => m.g === rule.lead && can(m))) || team.find(m => m.steps.includes(places[0])) || null;
+    const second = team.filter(m => m !== lead && next.includes(m.g) && can(m)).sort((x, y) => next.indexOf(x.g) - next.indexOf(y.g))[0] || null;
+    team.forEach(m => { m.steps = m.steps.filter(k => baseKey(k) !== b); });
+    spec = spec.filter(k => baseKey(k) !== b);
+    const leadN = placeMajority(places.length);
+    places.forEach((k, i) => { const to = i < leadN ? lead : second; if (to) to.steps.push(k); else spec.push(k); });
+    [lead, second].forEach(m => {
+      if (!m) return;
+      const n = m.steps.filter(k => baseKey(k) === b).length;
+      if (m.role === "observes") m.why = m.why.replace("Observes: no steps left at their position on this ladder", "Shared places only");
+      m.why += `. ${stepLabel(b)}: ${n} of ${places.length}${!surg(S.residents[m.id]).allowed(seq, places[0]) ? ", above their ceiling, so the specialist must be scrubbed" : ""}`;
+    });
+  });
+  const order = k => caseSteps.indexOf(k);
+  team.forEach(m => { m.steps.sort((x, y) => order(x) - order(y)); m.role = m.steps.length ? "performs" : "observes"; });
+  return { team, specialistSteps: spec.sort((x, y) => order(x) - order(y)) };
 }
 function planAdvanced(c, members) {
   const steps = orderedSteps(c);
