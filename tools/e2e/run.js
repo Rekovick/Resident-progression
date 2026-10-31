@@ -112,6 +112,21 @@ const BASE = "http://localhost:8123/Resident-progression/";
   const w = await res.evaluate(async () => { try { await S.db.doc("library/x").set({ name: "x" }); return "written"; } catch (e) { return e.code; } });
   assert(w === "VIEW_ONLY", "resident's app can't write");
 
+  // 5b. the owner opens a resident's link on the same device, then switches back
+  await owner.goto(amrUrl);
+  await owner.waitForFunction(() => S.mode === "live" && S.me && S.me.role === "resident", null, { timeout: 15000 });
+  assert(await owner.evaluate(() => readConns().list.length === 2), "the device keeps both links");
+  await owner.click('[data-act="me-menu"]');
+  assert(await owner.evaluate(() => document.querySelectorAll('[data-act="switch"]').length === 1), "the owner link is offered under Also on this device");
+  await owner.screenshot({ path: "switch.png" });
+  await Promise.all([owner.waitForNavigation(), owner.click('[data-act="switch"]')]);
+  await owner.waitForFunction(() => S.mode === "live" && S.me, null, { timeout: 15000 });
+  assert(await owner.evaluate(() => S.me.role === "owner" && S.canEdit), "switching back gives the owner view");
+  await owner.click('[data-act="me-menu"]');
+  await Promise.all([owner.waitForNavigation(), owner.click('[data-act="disconnect"]')]);
+  await owner.waitForFunction(() => S.mode === "live" && S.me, null, { timeout: 15000 });
+  assert(await owner.evaluate(() => S.me.role === "resident" && readConns().list.length === 1), "removing the owner link falls back to the resident link");
+
   // 6. switching a link off disconnects that phone at the next request
   gas.api(ownerKey, "removePerson", resident.id);
   try { gas.api(resident.key, "bootstrap"); assert(false, "switched-off link refused"); } catch (e) { assert(e.message === "ACCESS_DENIED", "switched-off link refused"); }

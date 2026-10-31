@@ -1244,9 +1244,28 @@ function newResident(name, start, baseline) {
 
 /* ---------- the installable app: records on a Google Apps Script server ---------- */
 /* A link carries the server's address and one person's key: ?c=<base64url of {s, k, n}>. */
-const CONN_KEY = "residency-tracker-connection";
-function readConn() { try { return JSON.parse(localStorage.getItem(CONN_KEY) || "null"); } catch (e) { return null; } }
-function saveConn(c) { try { if (c) localStorage.setItem(CONN_KEY, JSON.stringify(c)); else localStorage.removeItem(CONN_KEY); } catch (e) {} }
+/* A device remembers every link opened on it ({active, list}), so an owner who opens a resident's link
+   can switch back. Each entry: {s, k, n (name), r (role, once known)}. */
+const CONN_KEY = "residency-tracker-connection", CONNS_KEY = "residency-tracker-connections";
+function readConns() {
+  try {
+    const o = JSON.parse(localStorage.getItem(CONNS_KEY) || "null");
+    if (o && Array.isArray(o.list)) return o;
+    const old = JSON.parse(localStorage.getItem(CONN_KEY) || "null");
+    return old ? { active: old.k, list: [old] } : { active: null, list: [] };
+  } catch (e) { return { active: null, list: [] }; }
+}
+function writeConns(o) { try { localStorage.setItem(CONNS_KEY, JSON.stringify(o)); localStorage.removeItem(CONN_KEY); } catch (e) {} }
+function readConn() { const o = readConns(); return o.list.find(c => c.k === o.active) || o.list[0] || null; }
+/* saveConn(link) adds or refreshes a link and makes it the one in use; saveConn(null) forgets the one in use. */
+function saveConn(c) {
+  const o = readConns();
+  if (c) { const had = o.list.find(x => x.k === c.k) || {}; o.list = [Object.assign({}, had, c)].concat(o.list.filter(x => x.k !== c.k)); o.active = c.k; }
+  else { o.list = o.list.filter(x => x.k !== (S.conn ? S.conn.k : o.active)); o.active = o.list[0] ? o.list[0].k : null; }
+  writeConns(o);
+}
+function noteMe(me) { const o = readConns(), c = o.list.find(x => x.k === S.conn.k); if (c) { c.n = me.name; c.r = me.role; writeConns(o); } }
+function switchConn(k) { const o = readConns(); if (o.list.some(x => x.k === k)) { o.active = k; writeConns(o); location.replace(appBase()); } }
 const encodeConn = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 function decodeConn(v) {
   try { const o = JSON.parse(decodeURIComponent(escape(atob(String(v).replace(/-/g, "+").replace(/_/g, "/"))))); return o && /^https:\/\//.test(o.s) && o.k ? o : null; } catch (e) { return null; }
@@ -1394,7 +1413,7 @@ function connectView() {
     <details><summary>Setting up the tracker? Use the server link and your key</summary><div class="stack" style="margin-top:10px">
       <label class="field"><span>Server link (ends in /exec)</span><input type="text" id="cn-s" autocomplete="off"></label>
       <label class="field"><span>Access key</span><input type="text" id="cn-k" autocomplete="off"></label></div></details>
-    <div class="row"><button class="btn primary" data-act="connect">${ic("link")}Connect</button></div></div>`;
+    <div class="row"><button class="btn primary" data-act="connect">${ic("link")}Connect</button>${S.adding ? `<button class="btn" data-act="reload">Cancel</button>` : ""}</div></div>`;
 }
 function sortedIds() {
   return Object.keys(S.residents).sort((a, b) => run(S.residents[b]).level - run(S.residents[a]).level || startOf(S.residents[a]).localeCompare(startOf(S.residents[b])) || String(S.residents[a].name).localeCompare(String(S.residents[b].name)));
@@ -2060,8 +2079,14 @@ function offModal() {
 }
 function meModal() {
   return `<div class="mhead"><span class="eyebrow">This device</span><h2>${esc(S.me.name)}</h2><p class="small muted">${ROLE_NAME[S.me.role]}. ${S.me.role === "resident" ? "You see your own record, the rota and the theatre cases." : "You can change records."}</p></div>
-  <div class="mbody"><p class="small">To add the app to your home screen: on Android, tap Install or Chrome's menu, then Install app. On iPhone, open the link in Safari, then Share, Add to Home Screen.</p></div>
-  <div class="mfoot"><button class="btn danger left" data-act="disconnect">Disconnect this device</button><button class="btn primary" data-act="close">Done</button></div>`;
+  <div class="mbody">${(() => {
+      const others = readConns().list.filter(c => c.k !== S.conn.k);
+      const tone = r => r === "owner" ? "teal" : r === "resident" ? "blue" : "violet", icon = r => r === "owner" ? "shield" : r === "resident" ? "users" : "pencil";
+      return others.length ? `<div class="stack" style="gap:6px"><h3>Also on this device</h3><p class="small muted">Tap one to switch to it.</p><div class="morelist">${others.map(c => `<button class="moreitem" data-act="switch" data-k="${esc(c.k)}"><span class="tile sm tone-${tone(c.r)}">${ic(icon(c.r))}</span><span>${esc(c.n || "Saved link")}</span>${c.r ? `<span class="chip">${ROLE_NAME[c.r]}</span>` : ""}</button>`).join("")}</div></div>` : "";
+    })()}
+    <div><button class="btn" data-act="add-link">${ic("plus")}Add another link</button></div>
+    <p class="small">To add the app to your home screen: on Android, tap Install or Chrome's menu, then Install app. On iPhone, open the link in Safari, then Share, Add to Home Screen.</p></div>
+  <div class="mfoot"><button class="btn danger left" data-act="disconnect">Remove this link from this device</button><button class="btn primary" data-act="close">Done</button></div>`;
 }
 function importAllModal() {
   const d = S.modal.draft, o = parseExport(d.text), counts = {};
@@ -2373,6 +2398,8 @@ document.addEventListener("click", async e => {
     case "install": if (S.installEvt) { S.installEvt.prompt(); S.installEvt = null; render(); } break;
     case "reload": location.reload(); break;
     case "disconnect": saveConn(null); location.replace(appBase()); break;
+    case "switch": switchConn(el.dataset.k); break;
+    case "add-link": closeModal(); S.mode = "connect"; S.adding = true; S.connErr = ""; render(); break;
     case "connect": {
       const t = document.getElementById("cn-link").value.trim(), sv = document.getElementById("cn-s").value.trim(), k = document.getElementById("cn-k").value.trim();
       const c = connFromText(t) || (/^https:\/\/\S+\/exec$/.test(sv) && k.length >= 32 ? { s: sv, k } : null);
@@ -2640,12 +2667,13 @@ render();
     try { await db.start(); }
     catch (e) {
       const denied = String(e.code || e.message) === "ACCESS_DENIED";
-      if (denied) saveConn(null);
+      if (denied) { saveConn(null); if (readConn()) { location.replace(appBase()); return; } }
       S.mode = "connect"; S.retry = !denied;
       S.connErr = denied ? "This link has been switched off. Ask the program director for a new one." : "Could not reach the tracker's server. Check your connection and try again.";
       render(); return;
     }
     S.canEdit = S.me.role !== "resident";
+    noteMe(S.me);
     if (fromUrl) toast("Connected as " + S.me.name);
   } else {
     db = window.claude && window.claude.use ? await window.claude.use("db").catch(() => null) : null;
