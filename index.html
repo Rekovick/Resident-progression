@@ -505,6 +505,7 @@ const STEP = {
   "pf.crani": ["Suboccipital craniotomy and foramen magnum opening", 8, 6], "pf.c1": ["C1 posterior arch removal", 5, 4],
   "pf.duraopen": ["Y-shaped dural opening and cisterna magna release", 5, 4], "pf.dissect": ["Dissection from the brainstem and fourth ventricle floor", 10, 8],
   "pf.layers": ["Layered muscle and fascia closure", 5, 4],
+  "sp.reduce": ["Listhesis reduction", 5, 4],
 };
 const SHARED_NOTE = { "em.closure": "Shared across emergency cases", "em.burr": "Shared across emergency cases", "em.incision": "Shared across emergency cases", "em.hemo": "Shared across emergency cases", "ab.exp": "Shared with TP shunt", "sp.closure": "Shared by spine and TP shunt; opens after 10 emergency closures" };
 const PROCS = {
@@ -520,10 +521,10 @@ const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
 const CASE_LADDERS = ["cranio", "vent", "csdh", "lp", "spine", "tp"];
 const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
 /* Built-in steps outside the ladders, offered in the case editor's step picker. */
-const EXTRA_STEPS = [{ name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers"] }];
+const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers"] }];
 /* Level ceilings: the highest steps each level may perform. */
 const CEIL_J = ["em.closure", "em.burr", "em.incision", "em.hemo", "sp.closure"];
-const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.layers"]);
+const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.bone", "pf.pos", "pf.muscle", "pf.layers"]);
 const CEIL = { J: new Set(CEIL_J), M: new Set(CEIL_M), S: new Set(Object.keys(STEP)) };
 const groupOf = lvl => lvl >= 6 ? "S" : lvl >= 4 ? "M" : lvl >= 1 ? "J" : "A";
 const GROUP_NAME = { J: "Junior", M: "Midsenior", S: "Senior", A: "Attached" };
@@ -547,6 +548,7 @@ const LIB_BUILTIN = [
   { id: "b-lp", name: "Lumbar puncture", cat: "em", ladder: "lp", steps: [] },
   { id: "b-spine", name: "Spine fixation", cat: "el", ladder: "spine", steps: PROCS.spine.steps },
   { id: "b-lfix1", name: "Lumbar fixation without cage, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam"] },
+  { id: "b-lfix1c", name: "Lumbar fixation with cage and reduction, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam", "sp.disc", "sp.cage", "sp.reduce"] },
   { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: PROCS.tp.steps },
   { id: "b-psm", name: "Parasagittal meningioma excision", cat: "adv", ladder: "", steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
   { id: "b-pft", name: "Posterior fossa tumor excision", cat: "adv", ladder: "", steps: ["pf.pos", "em.incision", "pf.muscle", "em.burr", "pf.crani", "pf.c1", "em.hemo", "pf.duraopen", "ec.debulk", "pf.dissect", "cr.final", "ec.dura", "ec.bone", "pf.layers", "em.closure"] },
@@ -693,6 +695,8 @@ const PLACE_SHARE = {
   "sp.muscle": { next: ["J", "S", "M"] },        // the other side: a junior already allowed the step, else the senior
   "sp.screw": { lead: "S", next: ["M"], below: ["M"] }, // the senior places most screws, the midsenior the rest
 };
+/* In Advanced cases these steps go to the senior assisting the specialist, not to the closer. */
+const ADV_SENIOR = ["ec.dura"];
 const placeMajority = n => n <= 2 ? 1 : Math.floor(n / 2) + 1;
 const placeOf = k => { const i = String(k || "").indexOf("@"); return i < 0 ? "" : k.slice(i + 1); };
 function stepDef(k) {
@@ -1091,15 +1095,21 @@ function sharePlaces(seq, caseSteps, team, specialistSteps) {
 function planAdvanced(c, members) {
   const steps = orderedSteps(c);
   const closer = members.find(m => m.g === "M") || members.find(m => m.g === "S");
-  const closeSteps = steps.filter(k => k === "em.closure" || k === "sp.closure" || /closure/i.test(stepLabel(k)));
+  const senior = members.find(m => m.g === "S");
+  // steps for the senior assisting the specialist (the duraplasty); with no senior on the team the specialist keeps them
+  const srSteps = senior ? steps.filter(k => ADV_SENIOR.includes(baseKey(k))) : [];
+  const closeSteps = steps.filter(k => !ADV_SENIOR.includes(baseKey(k)) && (k === "em.closure" || k === "sp.closure" || /closure/i.test(stepLabel(k))));
   const team = members.map(m => {
     const tier = m.g === "S" ? seniorTier(S.residents[m.id], run(S.residents[m.id])) : null;
     const role = m === closer ? "closes" : m.g === "J" ? "observes" : "assists";
     let why = m === closer ? "Closes the wound" : m.g === "J" ? "Observes" : "Assists the specialist";
+    if (m === senior && srSteps.length) why += `${m === closer ? ". Also assists the specialist" : ""} and does the ${stepList(srSteps).toLowerCase()}`;
     if (tier && tier.n >= 2) why += tier.n === 3 ? ". Senior III: further steps at the specialist's discretion" : ". Senior II: approach steps (incision, exposure, hemostasis)";
-    return { id: m.id, steps: m === closer ? closeSteps : [], role, why: (m.why ? m.why + ". " : "") + why };
+    const mine = steps.filter(k => (m === closer && closeSteps.includes(k)) || (m === senior && srSteps.includes(k)));
+    return { id: m.id, steps: mine, role, why: (m.why ? m.why + ". " : "") + why };
   });
-  return { team, specialistSteps: steps.filter(k => !closer || !closeSteps.includes(k)) };
+  const given = new Set(team.flatMap(t => t.steps));
+  return { team, specialistSteps: steps.filter(k => !given.has(k)) };
 }
 function planEmergency(c, rids, ym) {
   const valid = rids.filter(id => S.residents[id]);
