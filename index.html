@@ -646,7 +646,7 @@ const avatar = (id, size) => `<span class="av ${size || ""} l${lvlOf(id)}" aria-
 const person = (id, extra) => `<span class="person">${avatar(id, "sm")}<span class="nm">${esc(nm(id))}</span>${extra || ""}</span>`;
 
 /* ---------- state ---------- */
-const SETTINGS_DEFAULT = { launch: "2026-10", specialists: [], categories: [], customSteps: {}, aliases: {}, shiftStart: RULE.shiftStart, copyAr: true };
+const SETTINGS_DEFAULT = { launch: "2026-11", specialists: [], categories: [], customSteps: {}, aliases: {}, shiftStart: RULE.shiftStart, copyAr: true };
 const S = {
   mode: "loading", db: null, canEdit: true,
   residents: {}, caseDocs: {}, rota: {}, library: {}, settings: clone(SETTINGS_DEFAULT),
