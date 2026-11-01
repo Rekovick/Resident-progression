@@ -1293,7 +1293,19 @@ function toast(msg) {
   t.textContent = msg; t.hidden = false;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
-const dbErr = e => { const c = String((e && (e.code || e.message)) || ""); return c === "quota_exceeded" ? "The tracker's storage is full." : c === "invalid_argument" || c === "VIEW_ONLY" ? "You need edit access to change records." : c === "ACCESS_DENIED" ? "This link has been switched off. Ask the program director for a new one." : "Could not save. Check your connection and try again."; };
+/* Says why a save failed: a server refusal is not a dropped connection. */
+const SERVER_NEEDED = 2;
+function dbErr(e) {
+  const c = String((e && (e.code || e.message)) || ""), msg = String((e && e.message) || "");
+  if (c === "quota_exceeded") return "The tracker's storage is full.";
+  if (c === "invalid_argument" || c === "VIEW_ONLY") return "You need edit access to change records.";
+  if (c === "ACCESS_DENIED") return "This link has been switched off. Ask the program director for a new one.";
+  if (/^Unknown action/.test(msg)) return "The tracker's server is an older version. Paste the new Code.gs from the launch kit, then deploy a new version.";
+  if (c === "NOT_FOUND") return "That record isn't on the server any more. Close the app and open it again.";
+  if (c === "BAD_REPLY") return "The server answered with a page instead of records. Check the deployment: Execute as Me, Who has access Anyone.";
+  if (e && e.server) return "The server refused this: " + msg;
+  return "Could not save. Check your connection and try again.";
+}
 const local = () => S.mode !== "live";
 async function patchResident(id, patch, msg) {
   if (local()) { S.residents[id] = deepMerge(clone(S.residents[id]), patch); S.residents[id]._id = id; invalidate(); render(); if (msg) toast(msg); return true; }
@@ -1389,13 +1401,18 @@ function connFromText(t) {
 }
 const appBase = () => location.origin + location.pathname;
 const linkFor = p => appBase() + "?c=" + encodeConn({ s: S.conn.s, k: p.key, n: p.name });
-async function call(fn, ...args) {
+async function post(url, body) {
   // text/plain keeps this a simple request, which Apps Script answers without a CORS preflight
-  const r = await fetch(S.conn.s, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ key: S.conn.k, fn, args }), redirect: "follow" });
-  const j = await r.json();
-  if (!j.ok) { const e = new Error(j.error); e.code = String(j.error).split(":")[0]; throw e; }
+  let r;
+  try { r = await fetch(url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(body), redirect: "follow" }); }
+  catch (err) { const e = new Error("offline"); e.code = "OFFLINE"; throw e; }
+  let j;
+  try { j = await r.json(); }
+  catch (err) { const e = new Error("bad reply"); e.code = "BAD_REPLY"; throw e; }
+  if (!j.ok) { const e = new Error(j.error); e.code = String(j.error).split(":")[0]; e.server = true; throw e; }
   return j.result;
 }
+const call = (fn, ...args) => post(S.conn.s, { key: S.conn.k, fn, args });
 /* The same calls the page makes on the claude.ai database (collection/doc, onSnapshot, set/update/delete),
    served from the Apps Script server and kept fresh by polling while the app is open. */
 function remoteDB() {
@@ -1424,7 +1441,7 @@ function remoteDB() {
   document.addEventListener("visibilitychange", () => { if (!document.hidden) { pull(); schedule(); } });
   const write = async (fn, path, data) => { const r = await call(fn, path, data); emit(apply([r])); };
   return {
-    start: async () => { const b = await call("bootstrap"); S.me = b.me; load(b); schedule(); },
+    start: async () => { const b = await call("bootstrap"); S.me = b.me; S.serverVersion = b.serverVersion || 1; load(b); schedule(); },
     reload: async () => load(await call("bootstrap")),
     collection: name => ({
       onSnapshot: cb => { const s = { col: true, path: name, cb }; subs.push(s); fire(s); },
@@ -1439,12 +1456,7 @@ function remoteDB() {
   };
 }
 /* ---------- case review link: one case, answered by its supervising specialist ---------- */
-async function callT(fn, ...args) {
-  const r = await fetch(S.survey.s, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ t: S.survey.t, fn, args }), redirect: "follow" });
-  const j = await r.json();
-  if (!j.ok) { const e = new Error(j.error); e.code = String(j.error).split(":")[0]; throw e; }
-  return j.result;
-}
+const callT = (fn, ...args) => post(S.survey.s, { t: S.survey.t, fn, args });
 const svName = rid => { const n = S.sv && S.sv.info && S.sv.info.names[rid]; return (n && n.name) || "A resident"; };
 const svLevel = rid => { const n = S.sv && S.sv.info && S.sv.info.names[rid]; return n ? n.level : 0; };
 const svSteps = c => (c.steps && c.steps.length ? c.steps : uniq(c.team.flatMap(t => t.steps || []).concat(c.specialistSteps || [])));
@@ -1515,7 +1527,7 @@ async function svSend() {
   if (v.missing.length) { v.err = v.missing.includes("name") && v.missing.length === 1 ? "Enter your name." : "Answer the questions marked in red."; render(); const el = document.querySelector(".qcard.missing"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
   v.err = ""; v.busy = true; render();
   try { await callT("submitSurvey", a); v.sent = true; }
-  catch (e) { v.err = e.code === "LINK_EXPIRED" ? "This link has expired. Ask for a new one." : e.code === "CASE_GONE" ? "This case was removed from the tracker." : "Couldn't send. Check your connection and try again."; }
+  catch (e) { v.err = e.code === "LINK_EXPIRED" ? "This link has expired. Ask for a new one." : e.code === "CASE_GONE" ? "This case was removed from the tracker." : e.server ? "The tracker refused this: " + e.message : "Couldn't send. Check your connection and try again."; }
   v.busy = false; render(); window.scrollTo(0, 0);
 }
 function openQR(draft) {
@@ -1599,6 +1611,7 @@ function banner() {
   const out = [];
   if (TEST_COPY) out.push(`<div class="banner">Test copy. Records here are separate from the real tracker, so try anything: nothing you do here changes it.</div>`);
   if (S.mode === "offline") out.push(`<div class="banner">This copy is not connected to the shared tracker, so changes stay in this tab and are lost when it closes. Open the tracker from its claude.ai link to save records.</div>`);
+  if (S.app && S.canEdit && S.serverVersion && S.serverVersion < SERVER_NEEDED) out.push(`<div class="banner">${ic("alert")}The tracker's server is an older version, so review links can't be made yet. Paste the new Code.gs from the launch kit, then Deploy, Manage deployments, Edit, New version, Deploy.</div>`);
   if (S.app && S.syncErr) out.push(`<div class="banner">${ic("alert")}Can't reach the server, so this may not show the latest records and changes can't be saved. It retries on its own.</div>`);
   if (S.mode === "live" && S.canEdit && inTransition()) out.push(`<div class="note">Transition period (${ymLabel(S.settings.launch)} to ${ymLabel(ymAdd(S.settings.launch, RULE.transitionMonths - 1))}): any step within a resident's ceiling can be completed by two satisfactory performances observed by two different specialists. Set where everyone is now in <button class="linkbtn" data-act="nav" data-v="baseline">Surgical starting levels</button>.</div>`);
   return out.join("");

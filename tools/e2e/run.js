@@ -60,6 +60,9 @@ const BASE = "http://localhost:8123/Resident-progression/";
   // 3. trainer plans an emergency case from the rota and reviews it: Ahmed Saleh no-show, Amr covers
   const tr = await open(trainer.key, 1280, "trainer");
   assert(await tr.evaluate(() => S.canEdit && S.me.role === "trainer"), "trainer can edit");
+  const oldServer = await tr.evaluate(async () => { try { await call("noSuchAction"); return "no error"; } catch (e) { return dbErr(e); } });
+  assert(/older version/.test(oldServer), "an action the server doesn't know says the server needs updating");
+  assert(await tr.evaluate(() => S.serverVersion === 2 && !document.body.innerText.includes("older version")), "no update warning on a current server");
   await tr.evaluate(async () => {
     const date = "2026-11-01", c = newCase("em"); applyLib(c, libFind("trauma craniotomy")); c.title = "Trauma craniotomy";
     const rids = rotaDay(date).filter(id => run(S.residents[id]).level >= 1);
