@@ -542,6 +542,11 @@ const STEP = {
   "pf.duraopen": ["Y-shaped dural opening and cisterna magna release", 5, 4], "pf.dissect": ["Dissection from the brainstem and fourth ventricle floor", 10, 8],
   "pf.layers": ["Layered muscle and fascia closure", 5, 4],
   "sp.reduce": ["Listhesis reduction", 5, 4],
+  // anterior skull base: pneumocephalus and CSF leak repair through a bifrontal craniotomy
+  "sb.cranial": ["Frontal sinus cranialization (posterior wall removal, mucosa stripping, duct plugging)", 5, 4],
+  "sb.air": ["Dural opening and pneumocephalus evacuation", 3, 2],
+  "sb.repair": ["Anterior skull base defect repair (dural tear, fascia or fat graft)", 8, 6],
+  "sb.peri": ["Vascularized pericranial flap over the anterior fossa floor", 5, 4],
 };
 const SHARED_NOTE = { "em.closure": "Shared across emergency cases", "em.burr": "Shared across emergency cases", "em.incision": "Shared across emergency cases", "em.hemo": "Shared across emergency cases", "ab.exp": "Shared with TP shunt", "sp.closure": "Shared by spine and TP shunt; opens after 10 emergency closures" };
 const PROCS = {
@@ -557,7 +562,7 @@ const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
 const CASE_LADDERS = ["cranio", "vent", "csdh", "lp", "spine", "tp"];
 const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
 /* Built-in steps outside the ladders, offered in the case editor's step picker. */
-const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers"] }];
+const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri"] }];
 /* Level ceilings: the highest steps each level may perform. */
 const CEIL_J = ["em.closure", "em.burr", "em.incision", "em.hemo", "sp.closure"];
 const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.bone", "pf.pos", "pf.muscle", "pf.layers"]);
@@ -584,6 +589,8 @@ const LIB_BUILTIN = [
   { id: "b-lp", name: "Lumbar puncture", cat: "em", ladder: "lp", steps: [] },
   { id: "b-spine", name: "Spine fixation", cat: "el", ladder: "spine", steps: PROCS.spine.steps },
   { id: "b-lfix1", name: "Lumbar fixation without cage, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam"] },
+  { id: "b-pneumo", name: "Pneumocephalus evacuation and skull base repair", aliases: ["Pneumocephaly evacuation", "Bifrontal craniotomy and frontal sinus cranialization", "Anterior skull base repair", "CSF leak repair"], cat: "adv", ladder: "",
+    steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
   { id: "b-lfix25", name: "Lumbar fixation and decompression, L2 to S1", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@L2L", "sp.screw@L2R", "sp.screw@L3L", "sp.screw@L3R", "sp.screw@L4L", "sp.screw@L4R", "sp.screw@L5L", "sp.screw@L5R", "sp.screw@S1L", "sp.screw@S1R", "sp.lam@L2", "sp.lam@L3", "sp.lam@L4", "sp.lam@L5"] },
   { id: "b-lfix1c", name: "Lumbar fixation with cage and reduction, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam", "sp.disc", "sp.cage", "sp.reduce"] },
   { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: PROCS.tp.steps },
