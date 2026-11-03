@@ -568,6 +568,7 @@ const LIB_BUILTIN = [
   { id: "b-lp", name: "Lumbar puncture", cat: "em", ladder: "lp", steps: [] },
   { id: "b-spine", name: "Spine fixation", cat: "el", ladder: "spine", steps: PROCS.spine.steps },
   { id: "b-lfix1", name: "Lumbar fixation without cage, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam"] },
+  { id: "b-lfix25", name: "Lumbar fixation and decompression, L2 to S1", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@L2L", "sp.screw@L2R", "sp.screw@L3L", "sp.screw@L3R", "sp.screw@L4L", "sp.screw@L4R", "sp.screw@L5L", "sp.screw@L5R", "sp.screw@S1L", "sp.screw@S1R", "sp.lam@L2", "sp.lam@L3", "sp.lam@L4", "sp.lam@L5"] },
   { id: "b-lfix1c", name: "Lumbar fixation with cage and reduction, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam", "sp.disc", "sp.cage", "sp.reduce"] },
   { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: PROCS.tp.steps },
   { id: "b-psm", name: "Parasagittal meningioma excision", cat: "adv", ladder: "", steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
@@ -706,6 +707,8 @@ const catChip = id => `<span class="chip tone tone-${catTone(id)}">${esc(catOf(i
 /* A step can be done in several places in one case: "sp.muscle@L" is the left side of muscle separation,
    "sp.screw@UL" the upper left screw. Each place is assigned and recorded on its own and counts toward the step's one counter. */
 const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right" };
+// levels: "L2" is the L2 lamina, "L2L" the left L2 screw
+const placeName = p => PLACE[p] || String(p).replace(/^([CTLS]\d{1,2})(L|R)$/, (_, lv, sd) => `${lv} ${PLACE[sd]}`);
 const baseKey = k => String(k || "").split("@")[0];
 /* Places of one step are shared, never all to one resident. The lead takes the majority (one of two sides,
    three of four screws); the rest go to the first resident on the team from "next" who may do the step, else to the specialist.
@@ -714,6 +717,7 @@ const baseKey = k => String(k || "").split("@")[0];
 const PLACE_SHARE = {
   "sp.muscle": { next: ["J", "S", "M"] },        // the other side: a junior already allowed the step, else the senior
   "sp.screw": { lead: "S", next: ["M"], below: ["M"] }, // the senior places most screws, the midsenior the rest
+  "sp.lam": { next: [] },                          // multilevel laminectomy: whoever the ladder gives it takes most levels, the specialist the rest
 };
 /* In Advanced cases these steps go to the senior assisting the specialist, not to the closer. */
 const ADV_SENIOR = ["ec.dura"];
@@ -721,7 +725,7 @@ const placeMajority = n => n <= 2 ? 1 : Math.floor(n / 2) + 1;
 const placeOf = k => { const i = String(k || "").indexOf("@"); return i < 0 ? "" : k.slice(i + 1); };
 function stepDef(k) {
   const place = placeOf(k);
-  if (place) { const d = stepDef(baseKey(k)); return Object.assign({}, d, { label: `${d.label} (${PLACE[place] || place})` }); }
+  if (place) { const d = stepDef(baseKey(k)); return Object.assign({}, d, { label: `${d.label} (${placeName(place)})` }); }
   if (STEP[k]) return { label: STEP[k][0], n: STEP[k][1], nb: STEP[k][2] };
   const c = (S.settings.customSteps || {})[k];
   const n = c ? Math.max(1, +c.n || 5) : 5;
