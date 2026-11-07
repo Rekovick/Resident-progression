@@ -586,6 +586,8 @@ const LIB_BUILTIN = [
     steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
   { id: "b-pterional", name: "Pterional approach, unilateral", aliases: ["Unilateral pterional craniotomy", "Pterional craniotomy", "Frontotemporal craniotomy"], cat: "adv", ladder: "",
     steps: ["ec.pos", "em.incision", "pt.fascia", "pt.temporalis", "em.burr", "pt.crani", "pt.sphenoid", "cr.hitch", "pt.duraopen", "pt.sylvian", "pt.lesion", "cr.final", "ec.dura", "ec.bone", "pt.layers", "em.closure"] },
+  { id: "b-lfen", name: "Lumbar interlaminar fenestration, 1 level", aliases: ["Lumbar fenestration", "Fenestration alone", "Interlaminar fenestration"], cat: "el", ladder: "spine",
+    steps: ["sp.closure", "sp.inc", "sp.muscle", "sp.hemo", "sp.lam@FEN"] },
   { id: "b-lidisc", name: "Lumbar interlaminar discectomy, 1 level", aliases: ["Lumbar microdiscectomy", "Interlaminar fenestration and discectomy", "Lumbar disc prolapse"], cat: "el", ladder: "spine",
     steps: ["sp.closure", "sp.inc", "sp.muscle", "sp.hemo", "sp.lam@FEN", "sp.disc"] },
   { id: "b-lfix25", name: "Lumbar fixation and decompression, L2 to S1", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@L2L", "sp.screw@L2R", "sp.screw@L3L", "sp.screw@L3R", "sp.screw@L4L", "sp.screw@L4R", "sp.screw@L5L", "sp.screw@L5R", "sp.screw@S1L", "sp.screw@S1R", "sp.lam@L2", "sp.lam@L3", "sp.lam@L4", "sp.lam@L5"] },
