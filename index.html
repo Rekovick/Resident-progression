@@ -575,6 +575,8 @@ const LIB_BUILTIN = [
   { id: "b-lfix1", name: "Lumbar fixation without cage, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam"] },
   { id: "b-pneumo", name: "Pneumocephalus evacuation and skull base repair", aliases: ["Pneumocephaly evacuation", "Bifrontal craniotomy and frontal sinus cranialization", "Anterior skull base repair", "CSF leak repair"], cat: "adv", ladder: "",
     steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
+  { id: "b-lidisc", name: "Lumbar interlaminar discectomy, 1 level", aliases: ["Lumbar microdiscectomy", "Interlaminar fenestration and discectomy", "Lumbar disc prolapse"], cat: "el", ladder: "spine",
+    steps: ["sp.closure", "sp.inc", "sp.muscle", "sp.hemo", "sp.lam@FEN", "sp.disc"] },
   { id: "b-lfix25", name: "Lumbar fixation and decompression, L2 to S1", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@L2L", "sp.screw@L2R", "sp.screw@L3L", "sp.screw@L3R", "sp.screw@L4L", "sp.screw@L4R", "sp.screw@L5L", "sp.screw@L5R", "sp.screw@S1L", "sp.screw@S1R", "sp.lam@L2", "sp.lam@L3", "sp.lam@L4", "sp.lam@L5"] },
   { id: "b-lfix1c", name: "Lumbar fixation with cage and reduction, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam", "sp.disc", "sp.cage", "sp.reduce"] },
   { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: PROCS.tp.steps },
@@ -713,7 +715,8 @@ const catChip = id => `<span class="chip tone tone-${catTone(id)}">${esc(catOf(i
 /* steps: built-in counters plus the program's own steps added from the case library */
 /* A step can be done in several places in one case: "sp.muscle@L" is the left side of muscle separation,
    "sp.screw@UL" the upper left screw. Each place is assigned and recorded on its own and counts toward the step's one counter. */
-const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right" };
+const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right",
+  FEN: "interlaminar fenestration" }; // "sp.lam@FEN": flavectomy and partial laminotomy, counted toward laminectomy
 // levels: "L2" is the L2 lamina, "L2L" the left L2 screw
 const placeName = p => PLACE[p] || String(p).replace(/^([CTLS]\d{1,2})(L|R)$/, (_, lv, sd) => `${lv} ${PLACE[sd]}`);
 const baseKey = k => String(k || "").split("@")[0];
