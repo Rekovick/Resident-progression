@@ -535,6 +535,14 @@ const STEP = {
   "og.sss": ["Anterior sagittal sinus ligation and falx division", 5, 4],
   "og.nerves": ["Capsule dissection from optic nerves, chiasm and anterior cerebral arteries", 10, 8],
   "og.base": ["Cribriform plate attachment drilling and dural base resection (Simpson grade)", 10, 8],
+  // transforaminal endoscopic lumbar discectomy
+  "te.pos": ["Prone positioning and fluoroscopic level marking", 5, 4],
+  "te.needle": ["Needle and guidewire placement under fluoroscopy", 8, 6],
+  "te.dilate": ["Serial dilation and working cannula placement", 5, 4],
+  "te.foramen": ["Foraminoplasty (reamer or drill)", 8, 6],
+  "te.disc": ["Endoscopic discectomy and root decompression", 10, 8],
+  "te.hemo": ["Radiofrequency hemostasis", 5, 4],
+  "te.close": ["Portal skin closure", 3, 2],
   // unilateral pterional (frontotemporal) approach
   "pt.fascia": ["Interfascial dissection protecting the frontal branch of the facial nerve", 5, 4],
   "pt.temporalis": ["Temporalis muscle incision and reflection", 5, 4],
@@ -559,10 +567,10 @@ const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
 const CASE_LADDERS = ["cranio", "vent", "csdh", "lp", "spine", "tp"];
 const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
 /* Built-in steps outside the ladders, offered in the case editor's step picker. */
-const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base"] }];
+const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce", "te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base"] }];
 /* Level ceilings: the highest steps each level may perform. */
-const CEIL_J = ["em.closure", "em.burr", "em.incision", "em.hemo", "sp.closure"];
-const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.bone", "pf.pos", "pf.muscle", "pf.layers", "pt.temporalis", "pt.layers"]);
+const CEIL_J = ["em.closure", "em.burr", "em.incision", "em.hemo", "sp.closure", "te.close"];
+const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.bone", "pf.pos", "pf.muscle", "pf.layers", "pt.temporalis", "pt.layers", "te.pos"]);
 const CEIL = { J: new Set(CEIL_J), M: new Set(CEIL_M), S: new Set(Object.keys(STEP)) };
 const groupOf = lvl => lvl >= 6 ? "S" : lvl >= 4 ? "M" : lvl >= 1 ? "J" : "A";
 const GROUP_NAME = { J: "Junior", M: "Midsenior", S: "Senior", A: "Attached" };
@@ -590,6 +598,9 @@ const LIB_BUILTIN = [
     steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
   { id: "b-ogm", name: "Olfactory groove meningioma excision", aliases: ["OGM excision", "Olfactory groove meningioma", "Bifrontal craniotomy for olfactory groove meningioma"], cat: "adv", ladder: "",
     steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "sb.cranial", "cr.hitch", "og.sss", "ec.debulk", "og.nerves", "og.base", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
+  // slots: the team this case takes ("SM" is one place for a senior or a midsenior); closer: who closes in an Advanced case
+  { id: "b-tfed", name: "Transforaminal endoscopic lumbar discectomy", aliases: ["TFED", "PELD", "Endoscopic transforaminal discectomy", "Percutaneous endoscopic lumbar discectomy", "Transforaminal endoscopic discectomy"], cat: "adv", ladder: "",
+    slots: ["SM", "J"], closer: "J", steps: ["te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] },
   { id: "b-pterional", name: "Pterional approach, unilateral", aliases: ["Unilateral pterional craniotomy", "Pterional craniotomy", "Frontotemporal craniotomy"], cat: "adv", ladder: "",
     steps: ["ec.pos", "em.incision", "pt.fascia", "pt.temporalis", "em.burr", "pt.crani", "pt.sphenoid", "cr.hitch", "pt.duraopen", "pt.sylvian", "pt.lesion", "cr.final", "ec.dura", "ec.bone", "pt.layers", "em.closure"] },
   { id: "b-lfen", name: "Lumbar interlaminar fenestration, 1 level", aliases: ["Lumbar fenestration", "Fenestration alone", "Interlaminar fenestration"], cat: "el", ladder: "spine",
@@ -1150,9 +1161,12 @@ function sharePlaces(seq, caseSteps, team, specialistSteps) {
   team.forEach(m => { m.steps.sort((x, y) => order(x) - order(y)); m.role = m.steps.length ? "performs" : "observes"; });
   return { team, specialistSteps: spec.sort((x, y) => order(x) - order(y)) };
 }
+/* The team a case takes and who closes, from its library entry; cases without one take a senior, a midsenior and a junior. */
+const caseShape = c => { const e = libById(c.libId || c.lib) || {}; return { slots: e.slots || ["S", "M", "J"], closer: e.closer || "M" }; };
 function planAdvanced(c, members) {
   const steps = orderedSteps(c);
-  const closer = members.find(m => m.g === "M") || members.find(m => m.g === "S");
+  const closeOrder = caseShape(c).closer === "J" ? ["J", "M", "S"] : ["M", "S"];
+  const closer = closeOrder.map(g => members.find(m => m.g === g)).find(Boolean);
   const senior = members.find(m => m.g === "S");
   // steps for the senior assisting the specialist (the duraplasty); with no senior on the team the specialist keeps them
   const srSteps = senior ? steps.filter(k => ADV_SENIOR.includes(baseKey(k))) : [];
@@ -1202,26 +1216,28 @@ function planList(cases, unavailable, ym) {
   const used = new Set();
   const pool = Object.keys(S.residents).filter(id => !unavailable.includes(id) && run(S.residents[id]).level >= 1);
   const slots = [];
-  cases.forEach((c, ci) => ["S", "M", "J"].forEach(g => slots.push({ ci, g, id: null, why: "" })));
+  cases.forEach((c, ci) => caseShape(c).slots.forEach(g => slots.push({ ci, g, gs: g.split(""), id: null, why: "" })));
+  // fixed places first, so a "senior or midsenior" place takes whoever is left rather than another case's senior
+  slots.sort((a, b) => a.gs.length - b.gs.length);
   const cnt = id => casesThisMonth(id, ym) + (extra[id] || 0);
   const minOf = id => SURG_MIN[LEVELS[run(S.residents[id]).level].key] || 0;
   const place = (slot, id, why) => { slot.id = id; slot.why = why; used.add(id); extra[id] = (extra[id] || 0) + 1; };
   // round 1: minimums, furthest behind first
   slots.forEach(slot => {
-    const c = pool.filter(id => !used.has(id) && groupOf(run(S.residents[id]).level) === slot.g && cnt(id) < minOf(id))
+    const c = pool.filter(id => !used.has(id) && slot.gs.includes(groupOf(run(S.residents[id]).level)) && cnt(id) < minOf(id))
       .sort((a, b) => (minOf(b) - cnt(b)) - (minOf(a) - cnt(a)) || (cxOf(a).lastDate || "").localeCompare(cxOf(b).lastDate || ""));
     if (c.length) place(slot, c[0], `Below the monthly minimum (${cnt(c[0])} of ${minOf(c[0])} cases)`);
   });
   // round 2: reward pool by priority score; holds and repeated no-shows get no spare places
   slots.filter(s => !s.id).forEach(slot => {
     const cs = cases[slot.ci], seq = caseSeq(cs), steps = orderedSteps(cs);
-    const c = pool.filter(id => { const E = run(S.residents[id]); return !used.has(id) && groupOf(E.level) === slot.g && !E.holdNow && !E.rewardExcluded && !reliability(id).offender; })
+    const c = pool.filter(id => { const E = run(S.residents[id]); return !used.has(id) && slot.gs.includes(groupOf(E.level)) && !E.holdNow && !E.rewardExcluded && !reliability(id).offender; })
       .map(id => ({ id, pri: priority(id, seq, steps, ym, extra[id] || 0) })).sort(byPriority);
     if (c.length) place(slot, c[0].id, `Reward pool. ${priText(c[0].pri)}`);
-    else slot.why = `No ${GROUP_NAME[slot.g].toLowerCase()} available`;
+    else slot.why = `No ${slot.gs.map(g => GROUP_NAME[g].toLowerCase()).join(" or ")} available`;
   });
   return cases.map((cs, ci) => {
-    const members = slots.filter(s => s.ci === ci && s.id).map(s => ({ id: s.id, why: s.why, g: s.g }));
+    const members = slots.filter(s => s.ci === ci && s.id).map(s => ({ id: s.id, why: s.why, g: groupOf(run(S.residents[s.id]).level) }));
     const empty = slots.filter(s => s.ci === ci && !s.id).map(s => s.why);
     if (catOf(cs.cat).rule === "advanced" || isLP(cs)) return Object.assign(planAdvanced(cs, members), { empty });
     const sp = splitSteps(caseSeq(cs), orderedSteps(cs), members);
