@@ -547,6 +547,10 @@ const STEP = {
   "sb.air": ["Dural opening and pneumocephalus evacuation", 3, 2],
   "sb.repair": ["Anterior skull base defect repair (dural tear, fascia or fat graft)", 8, 6],
   "sb.peri": ["Vascularized pericranial flap over the anterior fossa floor", 5, 4],
+  // olfactory groove meningioma through a bifrontal craniotomy
+  "og.sss": ["Anterior sagittal sinus ligation and falx division", 5, 4],
+  "og.nerves": ["Capsule dissection from optic nerves, chiasm and anterior cerebral arteries", 10, 8],
+  "og.base": ["Cribriform plate attachment drilling and dural base resection (Simpson grade)", 10, 8],
   // unilateral pterional (frontotemporal) approach
   "pt.fascia": ["Interfascial dissection protecting the frontal branch of the facial nerve", 5, 4],
   "pt.temporalis": ["Temporalis muscle incision and reflection", 5, 4],
@@ -571,7 +575,7 @@ const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
 const CASE_LADDERS = ["cranio", "vent", "csdh", "lp", "spine", "tp"];
 const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
 /* Built-in steps outside the ladders, offered in the case editor's step picker. */
-const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers"] }];
+const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base"] }];
 /* Level ceilings: the highest steps each level may perform. */
 const CEIL_J = ["em.closure", "em.burr", "em.incision", "em.hemo", "sp.closure"];
 const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.bone", "pf.pos", "pf.muscle", "pf.layers", "pt.temporalis", "pt.layers"]);
@@ -600,6 +604,8 @@ const LIB_BUILTIN = [
   { id: "b-lfix1", name: "Lumbar fixation without cage, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam"] },
   { id: "b-pneumo", name: "Pneumocephalus evacuation and skull base repair", aliases: ["Pneumocephaly evacuation", "Bifrontal craniotomy and frontal sinus cranialization", "Anterior skull base repair", "CSF leak repair"], cat: "adv", ladder: "",
     steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
+  { id: "b-ogm", name: "Olfactory groove meningioma excision", aliases: ["OGM excision", "Olfactory groove meningioma", "Bifrontal craniotomy for olfactory groove meningioma"], cat: "adv", ladder: "",
+    steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "sb.cranial", "cr.hitch", "og.sss", "ec.debulk", "og.nerves", "og.base", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
   { id: "b-pterional", name: "Pterional approach, unilateral", aliases: ["Unilateral pterional craniotomy", "Pterional craniotomy", "Frontotemporal craniotomy"], cat: "adv", ladder: "",
     steps: ["ec.pos", "em.incision", "pt.fascia", "pt.temporalis", "em.burr", "pt.crani", "pt.sphenoid", "cr.hitch", "pt.duraopen", "pt.sylvian", "pt.lesion", "cr.final", "ec.dura", "ec.bone", "pt.layers", "em.closure"] },
   { id: "b-lfen", name: "Lumbar interlaminar fenestration, 1 level", aliases: ["Lumbar fenestration", "Fenestration alone", "Interlaminar fenestration"], cat: "el", ladder: "spine",
