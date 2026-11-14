@@ -551,6 +551,19 @@ const STEP = {
   "og.sss": ["Anterior sagittal sinus ligation and falx division", 5, 4],
   "og.nerves": ["Capsule dissection from optic nerves, chiasm and anterior cerebral arteries", 10, 8],
   "og.base": ["Cribriform plate attachment drilling and dural base resection (Simpson grade)", 10, 8],
+  // carotid endarterectomy
+  "ce.pos": ["Supine positioning with shoulder roll and head rotation", 5, 4],
+  "ce.platysma": ["Platysma division and dissection along the sternocleidomastoid", 5, 4],
+  "ce.sheath": ["Facial vein ligation and carotid sheath opening", 5, 4],
+  "ce.expose": ["Exposure of the common, internal and external carotid arteries, preserving the vagus and hypoglossal nerves", 8, 6],
+  "ce.clamp": ["Heparinization and clamping (internal, common, external carotid)", 5, 4],
+  "ce.arteriotomy": ["Arteriotomy", 5, 4],
+  "ce.shunt": ["Shunt insertion", 5, 4],
+  "ce.plaque": ["Plaque removal and distal endpoint tacking", 10, 8],
+  "ce.repair": ["Arteriotomy repair (primary or patch angioplasty)", 10, 8],
+  "ce.unclamp": ["Flushing and unclamping sequence (external, common, internal carotid)", 5, 4],
+  "ce.drain": ["Drain placement", 3, 2],
+  "ce.platclose": ["Platysma closure", 5, 4],
   // transforaminal endoscopic lumbar discectomy
   "te.pos": ["Prone positioning and fluoroscopic level marking", 5, 4],
   "te.needle": ["Needle and guidewire placement under fluoroscopy", 8, 6],
@@ -583,10 +596,10 @@ const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
 const CASE_LADDERS = ["cranio", "vent", "csdh", "lp", "spine", "tp"];
 const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
 /* Built-in steps outside the ladders, offered in the case editor's step picker. */
-const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce", "te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base"] }];
+const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce", "te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base"] }, { name: "Vascular", steps: ["ce.pos", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "ce.drain", "ce.platclose"] }];
 /* Level ceilings: the highest steps each level may perform. */
 const CEIL_J = ["em.closure", "em.burr", "em.incision", "em.hemo", "sp.closure", "te.close"];
-const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.bone", "pf.pos", "pf.muscle", "pf.layers", "pt.temporalis", "pt.layers", "te.pos"]);
+const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.bone", "pf.pos", "pf.muscle", "pf.layers", "pt.temporalis", "pt.layers", "te.pos", "ce.pos", "ce.platysma", "ce.drain", "ce.platclose"]);
 const CEIL = { J: new Set(CEIL_J), M: new Set(CEIL_M), S: new Set(Object.keys(STEP)) };
 const groupOf = lvl => lvl >= 6 ? "S" : lvl >= 4 ? "M" : lvl >= 1 ? "J" : "A";
 const GROUP_NAME = { J: "Junior", M: "Midsenior", S: "Senior", A: "Attached" };
@@ -614,6 +627,8 @@ const LIB_BUILTIN = [
     steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
   { id: "b-ogm", name: "Olfactory groove meningioma excision", aliases: ["OGM excision", "Olfactory groove meningioma", "Bifrontal craniotomy for olfactory groove meningioma"], cat: "adv", ladder: "",
     steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "sb.cranial", "cr.hitch", "og.sss", "ec.debulk", "og.nerves", "og.base", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
+  { id: "b-cea", name: "Carotid endarterectomy", aliases: ["CEA", "Carotid endarterectomy (CEA)", "Endarterectomy"], cat: "adv", ladder: "",
+    steps: ["ce.pos", "em.incision", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "cr.final", "ce.drain", "ce.platclose", "em.closure"] },
   // slots: the team this case takes ("SM" is one place for a senior or a midsenior); closer: who closes in an Advanced case
   { id: "b-tfed", name: "Transforaminal endoscopic lumbar discectomy", aliases: ["TFED", "PELD", "Endoscopic transforaminal discectomy", "Percutaneous endoscopic lumbar discectomy", "Transforaminal endoscopic discectomy"], cat: "adv", ladder: "",
     slots: ["SM", "J"], closer: "J", steps: ["te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] },
