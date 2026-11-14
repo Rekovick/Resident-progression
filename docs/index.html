@@ -530,7 +530,7 @@ const STEP = {
   "cs.wash": ["Washing the hematoma", 5, 4], "cs.dura": ["Cauterization and dural opening", 5, 4], "cs.drain": ["Drain insertion", 5, 4],
   "sp.closure": ["Wound closure (elective)", 5, 4], "sp.inc": ["Wound incision", 5, 4], "sp.muscle": ["Muscle separation", 8, 6], "sp.hemo": ["Hemostasis", 5, 4],
   "sp.rod": ["Rod fixation", 5, 4], "sp.screw": ["Transpedicular screw fixation", 10, 8], "sp.lam": ["Laminectomy", 10, 8], "sp.disc": ["Discectomy", 10, 8], "sp.cage": ["Cage insertion", 5, 4],
-  "tp.inc": ["Skin incisions", 3, 2], "tp.thecal": ["Thecal end insertion", 5, 4], "tp.passer": ["Passer and fixation of both ends", 3, 2],
+  "tp.inc": ["Skin incision", 3, 2], "tp.thecal": ["Thecal end insertion", 5, 4], "tp.passer": ["Passer and fixation of both ends", 3, 2],
   // elective cranial steps (advanced cases such as parasagittal meningioma); not part of a ladder
   "ec.pos": ["Positioning and pin fixation", 5, 4], "ec.flap": ["Scalp flap and pericranial graft harvest", 5, 4],
   "ec.sinus": ["Craniotomy across the sinus (dural stripping, flap elevation)", 8, 6], "ec.duraopen": ["Dural opening based on the sinus", 5, 4],
@@ -648,7 +648,8 @@ const LIB_BUILTIN = [
     steps: ["sp.closure", "sp.inc", "sp.muscle", "sp.hemo", "sp.lam@FEN", "sp.disc"] },
   { id: "b-lfix25", name: "Lumbar fixation and decompression, L2 to S1", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@L2L", "sp.screw@L2R", "sp.screw@L3L", "sp.screw@L3R", "sp.screw@L4L", "sp.screw@L4R", "sp.screw@L5L", "sp.screw@L5R", "sp.screw@S1L", "sp.screw@S1R", "sp.lam@L2", "sp.lam@L3", "sp.lam@L4", "sp.lam@L5"] },
   { id: "b-lfix1c", name: "Lumbar fixation with cage and reduction, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam", "sp.disc", "sp.cage", "sp.reduce"] },
-  { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: PROCS.tp.steps },
+  // the back and abdominal incisions are separate places, so two residents open at the same time
+  { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: ["sp.closure", "tp.inc@BACK", "tp.inc@ABD", "ab.exp", "tp.thecal", "tp.passer"] },
   { id: "b-psm", name: "Parasagittal meningioma excision", cat: "adv", ladder: "", steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
   { id: "b-pft", name: "Posterior fossa tumor excision", cat: "adv", ladder: "", steps: ["pf.pos", "em.incision", "pf.muscle", "em.burr", "pf.crani", "pf.c1", "em.hemo", "pf.duraopen", "ec.debulk", "pf.dissect", "cr.final", "ec.dura", "ec.bone", "pf.layers", "em.closure"] },
 ];
@@ -785,7 +786,7 @@ const catChip = id => `<span class="chip tone tone-${catTone(id)}">${esc(catOf(i
 /* A step can be done in several places in one case: "sp.muscle@L" is the left side of muscle separation,
    "sp.screw@UL" the upper left screw. Each place is assigned and recorded on its own and counts toward the step's one counter. */
 const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right",
-  FEN: "interlaminar fenestration" }; // "sp.lam@FEN": flavectomy and partial laminotomy, counted toward laminectomy
+  FEN: "interlaminar fenestration", BACK: "back", ABD: "abdomen" }; // "sp.lam@FEN": flavectomy and partial laminotomy, counted toward laminectomy
 // levels: "L2" is the L2 lamina, "L2L" the left L2 screw
 const placeName = p => PLACE[p] || String(p).replace(/^([CTLS]\d{1,2})(L|R)$/, (_, lv, sd) => `${lv} ${PLACE[sd]}`);
 const baseKey = k => String(k || "").split("@")[0];
@@ -796,7 +797,8 @@ const baseKey = k => String(k || "").split("@")[0];
 const PLACE_SHARE = {
   "sp.muscle": { next: ["J", "S", "M"] },        // the other side: a junior already allowed the step, else the senior
   "sp.screw": { lead: "S", next: ["M"], below: ["M"] }, // the senior places most screws, the midsenior the rest
-  "sp.lam": { next: [] },                          // multilevel laminectomy: whoever the ladder gives it takes most levels, the specialist the rest
+  "sp.lam": { next: [] },
+  "tp.inc": { follow: { ABD: "ab.exp" } },          // follow: the abdominal incision goes with the peritoneal exposure, the back one to the other resident                          // multilevel laminectomy: whoever the ladder gives it takes most levels, the specialist the rest
 };
 /* In Advanced cases these steps go to the senior assisting the specialist, not to the closer. */
 const ADV_SENIOR = ["ec.dura"];
@@ -1189,6 +1191,13 @@ function sharePlaces(seq, caseSteps, team, specialistSteps) {
     spec = spec.filter(k => baseKey(k) !== b);
     const leadN = placeMajority(places.length);
     places.forEach((k, i) => { const to = i < leadN ? lead : second; if (to) to.steps.push(k); else spec.push(k); });
+    // a place that belongs with another step swaps to whoever does that step, when they hold another place of this group
+    Object.entries(rule.follow || {}).forEach(([pl, step]) => {
+      const k = places.find(x => placeOf(x) === pl); if (!k) return;
+      const y = team.find(m => m.steps.some(x => baseKey(x) === step)), x = team.find(m => m.steps.includes(k));
+      const q = y && y !== x && y.steps.find(z => baseKey(z) === b);
+      if (q && x) { y.steps[y.steps.indexOf(q)] = k; x.steps[x.steps.indexOf(k)] = q; }
+    });
     [lead, second].forEach(m => {
       if (!m) return;
       const n = m.steps.filter(k => baseKey(k) === b).length;
