@@ -788,7 +788,7 @@ const catChip = id => `<span class="chip tone tone-${catTone(id)}">${esc(catOf(i
 const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right",
   FEN: "interlaminar fenestration", BACK: "back", ABD: "abdomen" }; // "sp.lam@FEN": flavectomy and partial laminotomy, counted toward laminectomy
 // levels: "L2" is the L2 lamina, "L2L" the left L2 screw
-const placeName = p => PLACE[p] || String(p).replace(/^([CTLS]\d{1,2})(L|R)$/, (_, lv, sd) => `${lv} ${PLACE[sd]}`);
+const placeName = p => PLACE[p] || (/^\d+$/.test(p) ? "again, " + p : String(p)).replace(/^([CTLS]\d{1,2})(L|R)$/, (_, lv, sd) => `${lv} ${PLACE[sd]}`);
 const baseKey = k => String(k || "").split("@")[0];
 /* Places of one step are shared, never all to one resident. The lead takes the majority (one of two sides,
    three of four screws); the rest go to the first resident on the team from "next" who may do the step, else to the specialist.
@@ -900,7 +900,7 @@ function cx() {
     });
     const spec = normName(c.specialist);
     Object.entries(c.out || {}).forEach(([k, o]) => {
-      if (!o || !o.who || o.who === "spec") return;
+      if (!o || !o.who || o.who === "spec" || o.who === NOT_DONE) return;
       const r = get(o.who);
       turn(r, k);
       if (!o.o) return;
@@ -1376,6 +1376,7 @@ function toast(msg) {
 }
 /* Says why a save failed: a server refusal is not a dropped connection. */
 const SERVER_NEEDED = 2;
+const SERVER_LATEST = 3; // review links record steps not done and steps added for the case
 function dbErr(e) {
   const c = String((e && (e.code || e.message)) || ""), msg = String((e && e.message) || "");
   if (c === "quota_exceeded") return "The tracker's storage is full.";
@@ -1405,13 +1406,24 @@ async function deleteResident(id) {
   if (local()) { delete S.residents[id]; invalidate(); render(); return; }
   try { await S.db.doc("residents/" + id).delete(); } catch (e) { toast(dbErr(e)); }
 }
+/* The server merges an update into the stored record field by field, so a field left out stays as it was.
+   This marks every field the new version drops (an answer, the steps added for a case) as null so it goes. */
+function withRemovals(old, next) {
+  if (!old || !next || typeof old !== "object" || typeof next !== "object" || Array.isArray(old) || Array.isArray(next)) return next;
+  const out = Object.assign({}, next);
+  Object.keys(old).forEach(k => {
+    if (!(k in next)) { if (old[k] !== null) out[k] = null; }
+    else out[k] = withRemovals(old[k], next[k]);
+  });
+  return out;
+}
 async function saveCases(map) { // map: {id: caseObj|null}
   const byYM = {};
   Object.entries(map).forEach(([id, c]) => { const ym = c ? c.date.slice(0, 7) : (allCases().find(x => x.id === id) || {}).ym; if (ym) (byYM[ym] = byYM[ym] || {})[id] = c; });
   for (const [ym, items] of Object.entries(byYM)) {
     if (local()) { const d = S.caseDocs[ym] = S.caseDocs[ym] || { items: {} }; Object.assign(d.items, clone(items)); continue; }
     try {
-      if (S.caseDocs[ym]) await S.db.doc("cases/" + ym).update({ items });
+      if (S.caseDocs[ym]) await S.db.doc("cases/" + ym).update({ items: Object.fromEntries(Object.entries(items).map(([id, c]) => [id, withRemovals(((S.caseDocs[ym] || {}).items || {})[id], c)])) });
       else await S.db.doc("cases/" + ym).set({ items });
     } catch (e) { toast(dbErr(e)); return false; }
   }
@@ -1541,24 +1553,28 @@ const callT = (fn, ...args) => post(S.survey.s, { t: S.survey.t, fn, args });
 const svName = rid => { const n = S.sv && S.sv.info && S.sv.info.names[rid]; return (n && n.name) || "A resident"; };
 const svLevel = rid => { const n = S.sv && S.sv.info && S.sv.info.names[rid]; return n ? n.level : 0; };
 const svSteps = c => (c.steps && c.steps.length ? c.steps : uniq(c.team.flatMap(t => t.steps || []).concat(c.specialistSteps || [])));
+// the case's own steps, then any the specialist added for this case
+const svBase = c => svSteps(c).filter(k => !(c.added || []).includes(k));
+const svAll = v => uniq(svBase(v.info.case).concat(v.ans.added));
 const svPlanned = (c, k) => { const m = c.team.find(t => (t.steps || []).includes(k)); return m ? m.rid : (c.specialistSteps || []).includes(k) ? "spec" : ""; };
 function svStart(info) {
   const c = info.case, done = c.status === "done";
   const att = {}, out = {};
   c.team.forEach(t => { att[t.rid] = { att: done && t.att ? t.att : "on", reason: t.reason || "" }; });
-  svSteps(c).forEach(k => {
+  const added = (c.added || []).filter(k => svSteps(c).includes(k));
+  svBase(c).concat(added).forEach(k => {
     const o = (c.out || {})[k];
     if (done && o && o.who) out[k] = { who: o.who, o: o.o || null };
     else { const p = svPlanned(c, k); out[k] = { who: p, o: null }; }
   });
-  S.sv = { info, sent: false, err: "", missing: [], ans: { status: done ? "done" : (c.status === "postponed" || c.status === "cancelled" ? c.status : "done"), specialist: c.specialist || "", att, extra: (c.extra || []).map(x => x.rid), out, lp: c.lp ? c.lp.result || null : null } };
+  S.sv = { info, sent: false, err: "", missing: [], ans: { status: done ? "done" : (c.status === "postponed" || c.status === "cancelled" ? c.status : "done"), specialist: c.specialist || "", att, extra: (c.extra || []).map(x => x.rid), out, added, lp: c.lp ? c.lp.result || null : null } };
 }
 const svPresent = a => Object.keys(a.att).filter(r => a.att[r].att === "on" || a.att[r].att === "late").concat(a.extra);
 function surveyView() {
   const v = S.sv;
   if (!v) return `<div class="survey"><div class="qcard"><p class="muted">Loading the case…</p></div></div>`;
   if (v.fatal) return `<div class="survey"><div class="qcard"><div class="htitle"><span class="tile tone-rose">${ic("alert")}</span><h1>Can't open this case</h1></div><p>${esc(v.fatal)}</p></div></div>`;
-  const c = v.info.case, a = v.ans, lp = isLP(c), steps = svSteps(c), present = svPresent(a);
+  const c = v.info.case, a = v.ans, lp = isLP(c), steps = svAll(v), present = svPresent(a);
   const head = `<div class="qcard"><div class="htitle"><span class="tile tone-teal">${ic("clipboardCheck")}</span><div class="stack" style="gap:2px"><span class="eyebrow">Case review · ${esc(dayLabel(c.date))}${c.time ? " · " + esc(c.time) : ""}</span><h1 style="font-size:24px">${esc(caseTitle(c))}</h1></div></div>
     <p class="small muted">Tap what happened. It goes straight to the residency tracker. Nothing here is shared with the residents.</p></div>`;
   if (v.sent) return `<div class="survey">${head}<div class="qcard"><div class="htitle"><span class="tile tone-green">${ic("check")}</span><h2>Recorded. Thank you${a.specialist ? ", " + esc(a.specialist) : ""}.</h2></div>
@@ -1584,11 +1600,14 @@ function surveyView() {
       const working = r => a.extra.includes(r) || c.team.some(t => t.rid === r && (t.steps || []).length) || r === o.who;
       const all = uniq((planned && planned !== "spec" && present.includes(planned) ? [planned] : []).concat(present));
       const more = (v.more || {})[k], who = more ? all : all.filter(working), hidden = all.length - who.length;
-      return `<div class="qcard ${miss ? "missing" : ""}"><span class="hint">Step ${n + 1} of ${steps.length}</span><h2>${esc(stepLabel(k))}</h2>
+      const added = a.added.includes(k);
+      return `<div class="qcard ${miss ? "missing" : ""}"><span class="hint">Step ${n + 1} of ${steps.length}${added ? ` · added for this case · <button type="button" class="linkbtn" data-act="sv-rm" data-k="${k}">Remove</button>` : ""}</span><h2>${esc(stepLabel(k))}</h2>
         <span class="q">Who did it?</span>
-        <div class="choices">${who.map(r => ch("sv-who", r, o.who, esc(svName(r)) + (r === planned ? " <small>planned</small>" : ""), "", `data-k="${k}"`)).join("")}${ch("sv-who", "spec", o.who, "I did" + (planned === "spec" ? " <small>planned</small>" : ""), "", `data-k="${k}"`)}${hidden ? `<button type="button" class="choice" data-act="sv-more" data-k="${k}">Someone else <small>${hidden}</small></button>` : ""}</div>
-        ${o.who && o.who !== "spec" ? `<span class="q">How did it go?</span><div class="choices">${ch("sv-o", "sat", o.o, ic("check") + "Done well", "good", `data-k="${k}"`)}${ch("sv-o", "help", o.o, "Needed help", "mid", `data-k="${k}"`)}${ch("sv-o", "taken", o.o, "I took over", "bad", `data-k="${k}"`)}</div>` : ""}</div>`;
+        <div class="choices">${who.map(r => ch("sv-who", r, o.who, esc(svName(r)) + (r === planned ? " <small>planned</small>" : ""), "", `data-k="${k}"`)).join("")}${ch("sv-who", "spec", o.who, "I did" + (planned === "spec" ? " <small>planned</small>" : ""), "", `data-k="${k}"`)}${hidden ? `<button type="button" class="choice" data-act="sv-more" data-k="${k}">Someone else <small>${hidden}</small></button>` : ""}${added ? "" : ch("sv-who", NOT_DONE, o.who, "Not done", "", `data-k="${k}"`)}</div>
+        ${o.who && o.who !== "spec" && o.who !== NOT_DONE ? `<span class="q">How did it go?</span><div class="choices">${ch("sv-o", "sat", o.o, ic("check") + "Done well", "good", `data-k="${k}"`)}${ch("sv-o", "help", o.o, "Needed help", "mid", `data-k="${k}"`)}${ch("sv-o", "taken", o.o, "I took over", "bad", `data-k="${k}"`)}</div>` : ""}</div>`;
     }).join("") || `<div class="qcard"><p class="small muted">No resident steps on this case.</p></div>`;
+    body += `<div class="qcard"><span class="q">Was anything else done?</span><span class="hint">Add a step done in this case. It's asked like the others.</span>
+      <select id="sv-add" data-svadd="1" aria-label="Add a step done in this case"><option value="">Add a step…</option>${stepOptions([])}</select></div>`;
   }
   return `<div class="survey">${head}${status}${came}${body}${name}${sendBar(v)}</div>`;
 }
@@ -1603,11 +1622,11 @@ async function svSend() {
   if (a.status === "done") {
     const present = svPresent(a);
     if (isLP(c)) { if (!a.lp) v.missing.push("lp"); }
-    else svSteps(c).forEach(k => { const o = a.out[k]; if (!o.who || (o.who !== "spec" && (!present.includes(o.who) || !o.o))) v.missing.push(k); });
+    else svAll(v).forEach(k => { const o = a.out[k]; if (!o.who || (o.who !== "spec" && o.who !== NOT_DONE && (!present.includes(o.who) || !o.o))) v.missing.push(k); });
   }
   if (v.missing.length) { v.err = v.missing.includes("name") && v.missing.length === 1 ? "Enter your name." : "Answer the questions marked in red."; render(); const el = document.querySelector(".qcard.missing"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
   v.err = ""; v.busy = true; render();
-  try { await callT("submitSurvey", a); v.sent = true; }
+  try { const steps = svAll(v); await callT("submitSurvey", Object.assign({}, a, { out: Object.fromEntries(Object.entries(a.out).filter(([k]) => steps.includes(k))) })); v.sent = true; }
   catch (e) { v.err = e.code === "LINK_EXPIRED" ? "This link has expired. Ask for a new one." : e.code === "CASE_GONE" ? "This case was removed from the tracker." : e.server ? "The tracker refused this: " + e.message : "Couldn't send. Check your connection and try again."; }
   v.busy = false; render(); window.scrollTo(0, 0);
 }
@@ -1693,6 +1712,7 @@ function banner() {
   if (TEST_COPY) out.push(`<div class="banner">Test copy. Records here are separate from the real tracker, so try anything: nothing you do here changes it.</div>`);
   if (S.mode === "offline") out.push(`<div class="banner">This copy is not connected to the shared tracker, so changes stay in this tab and are lost when it closes. Open the tracker from its claude.ai link to save records.</div>`);
   if (S.app && S.canEdit && S.serverVersion && S.serverVersion < SERVER_NEEDED) out.push(`<div class="banner">${ic("alert")}The tracker's server is an older version, so review links can't be made yet. Paste the new Code.gs from the launch kit, then Deploy, Manage deployments, Edit, New version, Deploy.</div>`);
+  else if (S.app && S.canEdit && S.serverVersion && S.serverVersion < SERVER_LATEST) out.push(`<div class="banner">${ic("alert")}The tracker's server is an older version, so review links can't yet save a step marked not done or a step added for the case. Paste the new Code.gs from the launch kit, then Deploy, Manage deployments, Edit, New version, Deploy.</div>`);
   if (S.app && S.syncErr) out.push(`<div class="banner">${ic("alert")}Can't reach the server, so this may not show the latest records and changes can't be saved. It retries on its own.</div>`);
   if (S.mode === "live" && S.canEdit && inTransition()) out.push(`<div class="note">Transition period (${ymLabel(S.settings.launch)} to ${ymLabel(ymAdd(S.settings.launch, RULE.transitionMonths - 1))}): any step within a resident's ceiling can be completed by two satisfactory performances observed by two different specialists. Set where everyone is now in <button class="linkbtn" data-act="nav" data-v="baseline">Surgical starting levels</button>.</div>`);
   return out.join("");
@@ -2044,7 +2064,7 @@ function fairView() {
   const spec = {};
   allCases().filter(c => caseStatus(c) === "done").forEach(c => {
     const s = (c.specialist || "").trim() || "Not recorded", o = spec[s] || (spec[s] = { asg: 0, given: 0, why: {} });
-    (c.team || []).forEach(m => { if (!present(attOf(m))) return; (m.steps || []).forEach(k => { const r = (c.out || {})[k]; if (!r || !r.who) return; o.asg++; if (r.who === m.rid) o.given++; else if (r.reason) o.why[r.reason] = (o.why[r.reason] || 0) + 1; }); });
+    (c.team || []).forEach(m => { if (!present(attOf(m))) return; (m.steps || []).forEach(k => { const r = (c.out || {})[k]; if (!r || !r.who || r.who === NOT_DONE) return; o.asg++; if (r.who === m.rid) o.given++; else if (r.reason) o.why[r.reason] = (o.why[r.reason] || 0) + 1; }); });
   });
   const specRows = Object.entries(spec).filter(([, o]) => o.asg).sort((a, b) => b[1].asg - a[1].asg);
   return `<div class="head"><div>${htitle("fair")}<p class="muted">Who comes, who covers, and who gets the steps. Cases this month are against each level's monthly minimum.</p></div></div>
@@ -2415,13 +2435,20 @@ function copyModal() {
 function newCase(cat) { return { title: "", cat, ladder: "", steps: [], specialist: "", libId: null, mode: 0 }; }
 function applyLib(c, e) { c.libId = e.id; c.cat = e.cat; c.ladder = e.ladder || ""; c.steps = e.steps.slice(); c.editing = false; }
 const caseMode = c => !(c.title || "").trim() ? 0 : (c.libId && !c.editing) ? 1 : 2;
-function stepPicker(i, c) {
-  const custom = Object.entries(S.settings.customSteps || {});
-  const seen = new Set();
-  const groups = LADDERS.map(p => `<optgroup label="${esc(PROCS[p].name)}">${PROCS[p].steps.filter(k => !seen.has(k) && seen.add(k)).map(k => `<option value="${k}" ${c.steps.includes(k) ? "disabled" : ""}>${esc(stepLabel(k))}</option>`).join("")}</optgroup>`).join("")
-    + EXTRA_STEPS.map(x => `<optgroup label="${esc(x.name)}">${x.steps.filter(k => !seen.has(k) && seen.add(k)).map(k => `<option value="${k}" ${c.steps.includes(k) ? "disabled" : ""}>${esc(stepLabel(k))}</option>`).join("")}</optgroup>`).join("");
-  return `<select id="ce-${i}-add" data-ce="${i}" data-f="add" aria-label="Add a step"><option value="">Add a step…</option>${groups}${custom.length ? `<optgroup label="Program steps">${custom.map(([k, s]) => `<option value="${k}" ${c.steps.includes(k) ? "disabled" : ""}>${esc(s.label)}</option>`).join("")}</optgroup>` : ""}<option value="new">New step…</option></select>`;
+/* Every step, grouped by ladder, then the other built-in steps, then the program's own; "taken" ones are greyed out. */
+function stepOptions(taken) {
+  const custom = Object.entries(S.settings.customSteps || {}), seen = new Set();
+  const opt = (k, label) => `<option value="${k}" ${taken.includes(k) ? "disabled" : ""}>${esc(label || stepLabel(k))}</option>`;
+  return LADDERS.map(p => `<optgroup label="${esc(PROCS[p].name)}">${PROCS[p].steps.filter(k => !seen.has(k) && seen.add(k)).map(k => opt(k)).join("")}</optgroup>`).join("")
+    + EXTRA_STEPS.map(x => `<optgroup label="${esc(x.name)}">${x.steps.filter(k => !seen.has(k) && seen.add(k)).map(k => opt(k)).join("")}</optgroup>`).join("")
+    + (custom.length ? `<optgroup label="Program steps">${custom.map(([k, s]) => opt(k, s.label)).join("")}</optgroup>` : "");
 }
+function stepPicker(i, c) {
+  return `<select id="ce-${i}-add" data-ce="${i}" data-f="add" aria-label="Add a step"><option value="">Add a step…</option>${stepOptions(c.steps)}<option value="new">New step…</option></select>`;
+}
+/* A step added to one case at review. Done again in the same case, it becomes a second place: "sp.screw@2". */
+function addedKey(k, have) { if (!have.includes(k)) return k; let n = 2; while (have.includes(k + "@" + n)) n++; return k + "@" + n; }
+const NOT_DONE = "none"; // out[step].who when the step wasn't done in this case: counts for nobody and uses nobody's turn
 function caseEditor(c, i, opts) {
   opts = opts || {};
   const mode = opts.lib ? 2 : caseMode(c), hit = c.libId ? libById(c.libId) : null;
@@ -2526,6 +2553,7 @@ function openReview(c) {
   d.xids = (d.extra || []).map(x => x.rid);
   d.xfor = Object.fromEntries((d.extra || []).map(x => [x.rid, x.for || ""]));
   d.allSteps = (d.steps && d.steps.length ? orderedSteps(d) : uniq(d.team.flatMap(t => t.steps || []).concat(d.specialistSteps || [])));
+  d.added = (d.added || []).filter(k => d.allSteps.includes(k));
   d.allSteps.forEach(k => { if (!d.out[k]) { const a = assigneeOf(d, k); d.out[k] = { who: a === "spec" ? "spec" : a && present((d.team.find(t => t.rid === a) || {}).att) ? a : "" }; } });
   openModal({ type: "review", id: c.id, draft: d });
 }
@@ -2551,15 +2579,17 @@ function reviewModal() {
       <div class="field"><span>Result, recorded by the backup</span><div class="seg" role="group">${[["learner", "CSF obtained by the learner"], ["backup", "Backup took over, CSF obtained"], ["fail", "No CSF"]].map(([v, l2]) => `<button type="button" class="txt" data-act="rv-lp" data-v="${v}" aria-pressed="${l.result === v}">${l2}</button>`).join("")}</div></div></div>`; })()
       : d.allSteps.length ? d.allSteps.map(k => {
         const o = d.out[k] || {}, asg = assigneeOf(d, k), asgT = d.team.find(t => t.rid === asg), kid = k.replace(/[^a-z0-9]/gi, "-");
-        const needWhy = asgT && present(asgT.att) && o.who && o.who !== asg;
-        return `<div class="steprow"><div><strong>${esc(stepLabel(k))}</strong><div class="small muted">Planned for ${asg === "spec" ? "the specialist" : asg ? esc(nm(asg)) : "nobody"}</div></div>
-          <div class="ctl"><select id="rv-who-${kid}" data-rwho="${k}" aria-label="Who did ${esc(stepLabel(k))}"><option value="">Who did it?</option>${doers.map(id => `<option value="${id}" ${o.who === id ? "selected" : ""}>${esc(nm(id))}</option>`).join("")}<option value="spec" ${o.who === "spec" ? "selected" : ""}>The specialist</option></select></div>
-          ${(o.who && o.who !== "spec") || needWhy ? `<div class="extra">${o.who && o.who !== "spec" ? `<div class="seg" role="group" aria-label="Outcome">${Object.entries(OUTCOMES).map(([v, l]) => `<button type="button" class="txt ${v === "taken" ? "bad" : v === "help" ? "mid" : ""}" data-act="rv-o" data-k="${k}" data-v="${v}" aria-pressed="${o.o === v}">${l}</button>`).join("")}</div>` : ""}
+        const needWhy = asgT && present(asgT.att) && o.who && o.who !== asg && o.who !== NOT_DONE, added = d.added.includes(k), res = o.who && o.who !== "spec" && o.who !== NOT_DONE;
+        return `<div class="steprow"><div><strong>${esc(stepLabel(k))}</strong><div class="small muted">${added ? `Added for this case · <button type="button" class="linkbtn" data-act="rv-rm" data-k="${k}">Remove</button>` : `Planned for ${asg === "spec" ? "the specialist" : asg ? esc(nm(asg)) : "nobody"}`}</div></div>
+          <div class="ctl"><select id="rv-who-${kid}" data-rwho="${k}" aria-label="Who did ${esc(stepLabel(k))}"><option value="">Who did it?</option>${doers.map(id => `<option value="${id}" ${o.who === id ? "selected" : ""}>${esc(nm(id))}</option>`).join("")}<option value="spec" ${o.who === "spec" ? "selected" : ""}>The specialist</option><option value="${NOT_DONE}" ${o.who === NOT_DONE ? "selected" : ""}>Not done in this case</option></select></div>
+          ${res || needWhy ? `<div class="extra">${res ? `<div class="seg" role="group" aria-label="Outcome">${Object.entries(OUTCOMES).map(([v, l]) => `<button type="button" class="txt ${v === "taken" ? "bad" : v === "help" ? "mid" : ""}" data-act="rv-o" data-k="${k}" data-v="${v}" aria-pressed="${o.o === v}">${l}</button>`).join("")}</div>` : ""}
             ${needWhy ? `<select id="rv-why-${kid}" data-rwhy="${k}" aria-label="Why it was not given"><option value="">Why didn't ${esc(nm(asg))} do it?</option>${Object.entries(NOT_GIVEN).map(([v, l]) => `<option value="${v}" ${o.reason === v ? "selected" : ""}>${l}</option>`).join("")}</select>` : ""}</div>` : ""}</div>`; }).join("")
       : `<p class="small muted">No resident steps on this case.</p>`;
+    const addRow = lp ? "" : `<div class="steprow"><div><strong>Something else was done?</strong><div class="small muted">Add a step done in this case only. It counts like any other step; the case in the library is unchanged.</div></div>
+      <div class="ctl"><select id="rv-add" data-radd="1" aria-label="Add a step done in this case"><option value="">Add a step…</option>${stepOptions([])}</select></div></div>`;
     body = `<label class="field" style="max-width:360px"><span>Supervising specialist</span><input type="text" list="spec-list" id="rv-spec" data-m="specialist" value="${esc(d.specialist || "")}"></label>
       <div class="stack" style="gap:0"><h3>Who came</h3>${att || `<p class="small muted">Nobody was planned.</p>`}</div>${extras}
-      <div class="stack" style="gap:0"><h3>What was done</h3><p class="small muted" style="margin-bottom:4px">Confirm who actually did each step. Only satisfactory performances count toward a step; a step the specialist kept uses nobody's turn.</p>${steps}</div>
+      <div class="stack" style="gap:0"><h3>What was done</h3><p class="small muted" style="margin-bottom:4px">Confirm who actually did each step. Only satisfactory performances count toward a step; a step the specialist kept, or one not done in this case, uses nobody's turn.</p>${steps}${addRow}</div>
       <label class="field"><span>Note (optional)</span><input type="text" id="rv-note" data-m="note" value="${esc(d.note || "")}"></label>`;
   }
   return `<div class="mhead"><span class="label">${esc(dayLabel(d.date))}${d.time ? " · " + esc(d.time) : ""} · ${d.kind === "elective" ? esc(d.list || "Elective") : "Emergency"}</span><h2>${esc(caseTitle(d))}</h2><div class="row">${catChip(d.cat)}${d.fileNo ? `<span class="small muted mono">File ${esc(d.fileNo)}</span>` : ""}</div></div>
@@ -2575,15 +2605,18 @@ async function saveReview() {
     if (isLP(d)) { if (!(d.lp || {}).result) errs.push("Record the lumbar puncture result"); }
     else {
       if (d.allSteps.some(k => !(d.out[k] || {}).who)) errs.push("Say who did each step");
-      if (d.allSteps.some(k => { const o = d.out[k] || {}; return o.who && o.who !== "spec" && !o.o; })) errs.push("Choose how each resident's step went");
+      if (d.allSteps.some(k => { const o = d.out[k] || {}; return o.who && o.who !== "spec" && o.who !== NOT_DONE && !o.o; })) errs.push("Choose how each resident's step went");
     }
     if (errs.length) { m.err = errs.join(". ") + "."; renderModal(); return; }
   }
   const c = clone(d);
-  ["id", "ym", "newDate", "xids", "xfor", "allSteps", "closed", "perf"].forEach(k => delete c[k]);
+  ["id", "ym", "newDate", "xids", "xfor", "allSteps", "closed", "perf", "added"].forEach(k => delete c[k]);
+  // steps added for this case join its step list; removing one drops it again
+  if (d.added.length || (d.steps && d.steps.length) || (c.added || []).length) c.steps = d.allSteps.slice();
+  if (d.added.length) c.added = d.added.slice();
   c.extra = d.status === "done" ? d.xids.map(rid => ({ rid, for: d.xfor[rid] || null })) : [];
   if (d.status !== "done") { c.out = {}; c.team.forEach(t => { delete t.att; delete t.reason; }); }
-  else { const keep = new Set(doersOf(d).concat(["spec"])); Object.keys(c.out).forEach(k => { if (!d.allSteps.includes(k) || !keep.has(c.out[k].who)) delete c.out[k]; else if (c.out[k].who === "spec") c.out[k] = { who: "spec" }; }); c.team.forEach(t => { if (t.att !== "exc") delete t.reason; }); }
+  else { const keep = new Set(doersOf(d).concat(["spec", NOT_DONE])); Object.keys(c.out).forEach(k => { if (!d.allSteps.includes(k) || !keep.has(c.out[k].who)) delete c.out[k]; else if (c.out[k].who === "spec" || c.out[k].who === NOT_DONE) c.out[k] = { who: c.out[k].who }; }); c.team.forEach(t => { if (t.att !== "exc") delete t.reason; }); }
   c.reviewedAt = new Date().toISOString();
   const map = { [m.id]: c };
   if (d.status === "postponed" && validDate(d.newDate)) {
@@ -2893,6 +2926,7 @@ document.addEventListener("click", async e => {
       if (present(t.att)) Object.keys(d.xfor).forEach(x => { if (d.xfor[x] === t.rid) d.xfor[x] = ""; });
       renderModal(); break;
     }
+    case "rv-rm": { const d = m.draft, k = el.dataset.k; d.allSteps = d.allSteps.filter(x => x !== k); d.added = d.added.filter(x => x !== k); delete d.out[k]; renderModal(); break; }
     case "rv-o": { const o = m.draft.out[el.dataset.k]; o.o = o.o === el.dataset.v ? null : el.dataset.v; renderModal(); break; }
     case "rv-lp": m.draft.lp = Object.assign({}, m.draft.lp, { result: el.dataset.v }); renderModal(); break;
     case "rv-save": saveReview(); break;
@@ -2905,16 +2939,17 @@ document.addEventListener("click", async e => {
       const a = S.sv.ans, r = el.dataset.r; a.att[r].att = el.dataset.v;
       if (el.dataset.v === "exc") a.att[r].reason = a.att[r].reason || "other";
       const present = svPresent(a);
-      Object.values(a.out).forEach(o => { if (o.who && o.who !== "spec" && !present.includes(o.who)) { o.who = ""; o.o = null; } });
+      Object.values(a.out).forEach(o => { if (o.who && o.who !== "spec" && o.who !== NOT_DONE && !present.includes(o.who)) { o.who = ""; o.o = null; } });
       render(); break;
     }
     case "sv-extra": {
       const a = S.sv.ans, r = el.dataset.v; a.extra = a.extra.includes(r) ? a.extra.filter(x => x !== r) : a.extra.concat([r]);
       const present = svPresent(a);
-      Object.values(a.out).forEach(o => { if (o.who && o.who !== "spec" && !present.includes(o.who)) { o.who = ""; o.o = null; } });
+      Object.values(a.out).forEach(o => { if (o.who && o.who !== "spec" && o.who !== NOT_DONE && !present.includes(o.who)) { o.who = ""; o.o = null; } });
       render(); break;
     }
-    case "sv-who": { const o = S.sv.ans.out[el.dataset.k]; if (o.who !== el.dataset.v) { o.who = el.dataset.v; o.o = null; } S.sv.missing = S.sv.missing.filter(x => x !== el.dataset.k || el.dataset.v !== "spec"); render(); break; }
+    case "sv-who": { const o = S.sv.ans.out[el.dataset.k]; if (o.who !== el.dataset.v) { o.who = el.dataset.v; o.o = null; } S.sv.missing = S.sv.missing.filter(x => x !== el.dataset.k || (el.dataset.v !== "spec" && el.dataset.v !== NOT_DONE)); render(); break; }
+    case "sv-rm": { const a = S.sv.ans, k = el.dataset.k; a.added = a.added.filter(x => x !== k); delete a.out[k]; S.sv.missing = S.sv.missing.filter(x => x !== k); render(); break; }
     case "sv-o": { S.sv.ans.out[el.dataset.k].o = el.dataset.v; S.sv.missing = S.sv.missing.filter(x => x !== el.dataset.k); render(); break; }
     case "sv-lp": S.sv.ans.lp = el.dataset.v; S.sv.missing = S.sv.missing.filter(x => x !== "lp"); render(); break;
     case "sv-send": svSend(); break;
@@ -2948,6 +2983,11 @@ function onField(e) {
   if (e.type === "change" && t.dataset.bgrouplp && t.value !== "") { const ids = sortedIds().filter(id => run(S.residents[id]).level >= 1 && groupOf(lvlOf(id)) === t.dataset.bgrouplp); Promise.all(ids.map(id => patchResident(id, { lpBase: +t.value }))).then(() => toast(`Saved for ${ids.length} residents`)); return; }
   if (e.type === "change" && t.dataset.set) { saveSettings({ [t.dataset.set]: t.type === "checkbox" ? t.checked : +t.value }).then(ok => ok && toast("Saved")); return; }
   if (t.id === "sv-name" && S.sv && S.sv.ans) { S.sv.ans.specialist = t.value; return; }
+  if (t.dataset.svadd && S.sv && S.sv.ans) {
+    if (e.type !== "change" || !t.value) return;
+    const v = S.sv, k = addedKey(t.value, svAll(v)); v.ans.added.push(k); v.ans.out[k] = { who: "", o: null };
+    render(); const el = document.querySelectorAll(".survey .qcard h2"); if (el.length) el[el.length - 1].scrollIntoView({ behavior: "smooth", block: "center" }); return;
+  }
   const m = S.modal; if (!m) return;
   const d = m.draft;
   let rerender = false;
@@ -2990,13 +3030,14 @@ function onField(e) {
     if (e.type !== "change") return;
     const set = new Set(d[t.dataset.pick]); t.checked ? set.add(t.value) : set.delete(t.value); d[t.dataset.pick] = [...set];
     if (m.type === "em" && t.dataset.pick === "rids") d.touched = true;
-    if (t.dataset.pick === "xids") { Object.keys(d.xfor).forEach(x => { if (!set.has(x)) delete d.xfor[x]; }); d.allSteps.forEach(k => { if (d.out[k].who && d.out[k].who !== "spec" && !doersOf(d).includes(d.out[k].who)) d.out[k] = { who: "" }; }); }
+    if (t.dataset.pick === "xids") { Object.keys(d.xfor).forEach(x => { if (!set.has(x)) delete d.xfor[x]; }); d.allSteps.forEach(k => { if (d.out[k].who && d.out[k].who !== "spec" && d.out[k].who !== NOT_DONE && !doersOf(d).includes(d.out[k].who)) d.out[k] = { who: "" }; }); }
     rerender = true;
   }
   else if (t.dataset.lc != null) d.cases[+t.dataset.lc][t.dataset.f] = t.value;
   else if (t.dataset.rexc != null) d.team[+t.dataset.rexc].reason = t.value;
   else if (t.dataset.rfor) d.xfor[t.dataset.rfor] = t.value;
-  else if (t.dataset.rwho) { if (e.type !== "change") return; const o = d.out[t.dataset.rwho] = d.out[t.dataset.rwho] || {}; o.who = t.value; if (!t.value || t.value === "spec") o.o = null; o.reason = null; rerender = true; }
+  else if (t.dataset.rwho) { if (e.type !== "change") return; const o = d.out[t.dataset.rwho] = d.out[t.dataset.rwho] || {}; o.who = t.value; if (!t.value || t.value === "spec" || t.value === NOT_DONE) o.o = null; o.reason = null; rerender = true; }
+  else if (t.dataset.radd) { if (e.type !== "change" || !t.value) return; const k = addedKey(t.value, d.allSteps); d.allSteps.push(k); d.added.push(k); d.out[k] = { who: "" }; m.err = ""; rerender = true; }
   else if (t.dataset.rwhy) d.out[t.dataset.rwhy].reason = t.value || null;
   else if (t.dataset.rmap) { if (e.type !== "change") return; if (t.value) d.map[t.dataset.rmap] = t.value; else delete d.map[t.dataset.rmap]; m.err = ""; rerender = true; }
   if (rerender) { renderModal(); return; }
