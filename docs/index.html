@@ -551,6 +551,15 @@ const STEP = {
   "og.sss": ["Anterior sagittal sinus ligation and falx division", 5, 4],
   "og.nerves": ["Capsule dissection from optic nerves, chiasm and anterior cerebral arteries", 10, 8],
   "og.base": ["Cribriform plate attachment drilling and dural base resection (Simpson grade)", 10, 8],
+  // anterior cervical discectomy and fusion; discectomy, decompression and cage are recorded per level ("ac.disc@LV1")
+  "ac.pos": ["Supine positioning with shoulder roll and neck extension", 5, 4],
+  "ac.level": ["Fluoroscopic level confirmation", 5, 4],
+  "ac.plane": ["Avascular plane between the carotid sheath and the trachea and oesophagus", 8, 6],
+  "ac.longus": ["Longus colli elevation and retractor placement", 5, 4],
+  "ac.disc": ["Anterior cervical discectomy and endplate preparation", 10, 8],
+  "ac.decomp": ["Posterior longitudinal ligament opening and osteophyte removal", 10, 8],
+  "ac.cage": ["Cervical cage sizing and insertion", 8, 6],
+  "ac.plate": ["Anterior plate and screw fixation", 8, 6],
   // carotid endarterectomy
   "ce.pos": ["Supine positioning with shoulder roll and head rotation", 5, 4],
   "ce.platysma": ["Platysma division and dissection along the sternocleidomastoid", 5, 4],
@@ -602,10 +611,10 @@ const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
 const CASE_LADDERS = ["cranio", "vent", "csdh", "lp", "spine", "tp"];
 const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
 /* Built-in steps outside the ladders, offered in the case editor's step picker. */
-const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce", "ld.sample", "ld.debride", "ld.hardware", "ld.disc", "ld.wash", "te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base"] }, { name: "Vascular", steps: ["ce.pos", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "ce.drain", "ce.platclose"] }];
+const EXTRA_STEPS = [{ name: "Cervical spine", steps: ["ac.pos", "ac.level", "ac.plane", "ac.longus", "ac.disc", "ac.decomp", "ac.cage", "ac.plate"] }, { name: "Elective spine", steps: ["sp.reduce", "ld.sample", "ld.debride", "ld.hardware", "ld.disc", "ld.wash", "te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base"] }, { name: "Vascular", steps: ["ce.pos", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "ce.drain", "ce.platclose"] }];
 /* Level ceilings: the highest steps each level may perform. */
 const CEIL_J = ["em.closure", "em.burr", "em.incision", "em.hemo", "sp.closure", "te.close"];
-const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.bone", "pf.pos", "pf.muscle", "pf.layers", "pt.temporalis", "pt.layers", "te.pos", "ce.pos", "ce.platysma", "ce.drain", "ce.platclose", "ld.sample", "ld.wash"]);
+const CEIL_M = CEIL_J.concat(["cr.hitch", "vc.fix", "vc.cann", "vc.evd", "ab.exp", "vc.purse", "vc.res", "vc.final", "cs.wash", "cs.dura", "cs.drain", "sp.inc", "sp.muscle", "sp.hemo", "tp.inc", "ec.pos", "ec.flap", "ec.bone", "pf.pos", "pf.muscle", "pf.layers", "pt.temporalis", "pt.layers", "te.pos", "ce.pos", "ce.platysma", "ce.drain", "ce.platclose", "ld.sample", "ld.wash", "ac.pos", "ac.level"]);
 const CEIL = { J: new Set(CEIL_J), M: new Set(CEIL_M), S: new Set(Object.keys(STEP)) };
 const groupOf = lvl => lvl >= 6 ? "S" : lvl >= 4 ? "M" : lvl >= 1 ? "J" : "A";
 const GROUP_NAME = { J: "Junior", M: "Midsenior", S: "Senior", A: "Attached" };
@@ -633,6 +642,8 @@ const LIB_BUILTIN = [
     steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
   { id: "b-ogm", name: "Olfactory groove meningioma excision", aliases: ["OGM excision", "Olfactory groove meningioma", "Bifrontal craniotomy for olfactory groove meningioma"], cat: "adv", ladder: "",
     steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "sb.cranial", "cr.hitch", "og.sss", "ec.debulk", "og.nerves", "og.base", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
+  { id: "b-acdf2", name: "ACDF, 2 levels", aliases: ["Anterior cervical discectomy and fusion, 2 levels", "Two-level ACDF", "ACDF 2 levels", "Cervical discectomy, 2 levels"], cat: "adv", ladder: "",
+    steps: ["ac.pos", "ac.level", "em.incision", "ce.platysma", "ac.plane", "ac.longus", "ac.disc@LV1", "ac.decomp@LV1", "ac.cage@LV1", "ac.disc@LV2", "ac.decomp@LV2", "ac.cage@LV2", "ac.plate", "cr.final", "ce.drain", "ce.platclose", "em.closure"] },
   { id: "b-cea", name: "Carotid endarterectomy", aliases: ["CEA", "Carotid endarterectomy (CEA)", "Endarterectomy"], cat: "adv", ladder: "",
     steps: ["ce.pos", "em.incision", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "cr.final", "ce.drain", "ce.platclose", "em.closure"] },
   { id: "b-ldeb", name: "Lumbar debridement", aliases: ["Lumbar wound debridement", "Spinal infection debridement", "Spondylodiscitis debridement", "Lumbar wound infection"], cat: "adv", ladder: "",
@@ -786,7 +797,7 @@ const catChip = id => `<span class="chip tone tone-${catTone(id)}">${esc(catOf(i
 /* A step can be done in several places in one case: "sp.muscle@L" is the left side of muscle separation,
    "sp.screw@UL" the upper left screw. Each place is assigned and recorded on its own and counts toward the step's one counter. */
 const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right",
-  FEN: "interlaminar fenestration", BACK: "back", ABD: "abdomen" }; // "sp.lam@FEN": flavectomy and partial laminotomy, counted toward laminectomy
+  FEN: "interlaminar fenestration", BACK: "back", ABD: "abdomen", LV1: "first level", LV2: "second level", LV3: "third level" }; // "sp.lam@FEN": flavectomy and partial laminotomy, counted toward laminectomy
 // levels: "L2" is the L2 lamina, "L2L" the left L2 screw
 const placeName = p => PLACE[p] || (/^\d+$/.test(p) ? "again, " + p : String(p)).replace(/^([CTLS]\d{1,2})(L|R)$/, (_, lv, sd) => `${lv} ${PLACE[sd]}`);
 const baseKey = k => String(k || "").split("@")[0];
