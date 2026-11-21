@@ -824,14 +824,22 @@ const baseKey = k => String(k || "").split("@")[0];
    lead: the level that leads when it is on the team and may do the step (otherwise whoever the ladder gives the first place).
    Only a resident the privilege list allows the step takes places; one doing it as their stretch step takes a single place. */
 const PLACE_SHARE = {
-  "sp.muscle": { next: ["J", "S", "M"] },        // the other side: a junior already allowed the step, else the senior
+  // muscle separation goes by grade, not duty level: the R2–R3 residents share the two sides, even before the ladder reaches it;
+  // then an R1 who has reached it on the ladder; the senior, who takes the screws and the laminectomy, only as the last resort
+  "sp.muscle": { byGrade: true },
   "sp.screw": { lead: "S", next: ["M"] },       // the senior places most screws, the midsenior the rest when allowed
   "sp.lam": { next: [] },
-  "pc.muscle": { next: ["M", "S"] },              // cervical sides: never an R1 (STEP_GRADE_MIN), so the midsenior and the senior
+  "pc.muscle": { byGrade: true },                 // the same on the cervical spine, where an R1 never takes a side (STEP_GRADE_MIN)
   "pc.lms": { lead: "S", next: ["M"] },         // lateral mass screws: like pedicle screws, the senior most, the midsenior the rest when allowed
   "pc.lam": { next: [] },
   "tp.inc": { follow: { ABD: "ab.exp" } },          // follow: the abdominal incision goes with the peritoneal exposure, the back one to the other resident                          // multilevel laminectomy: whoever the ladder gives it takes most levels, the specialist the rest
 };
+/* Who takes the two sides of a step that goes by grade (PLACE_SHARE byGrade), best first: R2–R3 (the more senior first),
+   then an R1 who may take it, the R4–R5 last. reachOK says whether an R1 has reached the step. */
+function gradeSides(team, k, priv, path, reachOK) {
+  const gr = m => surg(S.residents[m.id]).grade, rank = m => gr(m) >= 2 && gr(m) <= 3 ? 0 : gr(m) === 1 ? 1 : 2;
+  return team.filter(m => surg(S.residents[m.id]).allowed(path, k, priv) && (gr(m) >= 2 || reachOK(m))).sort((x, y) => rank(x) - rank(y) || gr(y) - gr(x));
+}
 const placeMajority = n => n <= 2 ? 1 : Math.floor(n / 2) + 1;
 const placeOf = k => { const i = String(k || "").indexOf("@"); return i < 0 ? "" : k.slice(i + 1); };
 function stepDef(k) {
@@ -1453,6 +1461,14 @@ function shareSteps(caseSteps, members, priv, seq, opts) {
   const can = (m, k) => open(m, k) && st(m).within(priv, k) && st(m).prereqOK(k) && kept(m, k);
   const learning = (m, k) => ladder ? baseKey(k) === baseKey(st(m).learning(seq) || "") : !st(m).complete(k);
   const taken = new Set(), give = (m, k) => { m.steps.push(k); taken.add(k); };
+  // 0. the sides of a step that goes by grade (muscle separation), before anything else so the fair share counts them;
+  //    sharePlaces settles them the same way, and sends a side nobody here may take to the surgeons
+  const sides = {};
+  caseSteps.forEach(k => { if (placeOf(k) && (PLACE_SHARE[baseKey(k)] || {}).byGrade) (sides[baseKey(k)] = sides[baseKey(k)] || []).push(k); });
+  Object.values(sides).filter(pl => pl.length >= 2).forEach(pl => {
+    const [a, b] = gradeSides(team, pl[0], priv, path, m => open(m, pl[0]) && kept(m, pl[0]));
+    pl.forEach((k, i) => { const to = i < placeMajority(pl.length) ? a : b; if (to) give(to, k); else taken.add(k); });
+  });
   // 1. the step each resident is learning on the ladder
   if (ladder) team.slice().sort((a, b) => st(a).learnIndex(seq) - st(b).learnIndex(seq) || st(a).turns(st(a).learning(seq)) - st(b).turns(st(b).learning(seq)) || lvlOf(a.id) - lvlOf(b.id)).forEach(m => {
     const lb = baseKey(st(m).learning(seq) || "");
@@ -1537,8 +1553,12 @@ function sharePlaces(seq, caseSteps, team, specialistSteps, priv) {
     const reached = m => { if (!seq) return true; const L = surg(S.residents[m.id]).learning(seq); return !L || seq.indexOf(b) <= seq.indexOf(baseKey(L)); };
     const can = m => surg(S.residents[m.id]).allowed(seq || caseSteps, places[0], priv) && reached(m);
     const cap = m => surg(S.residents[m.id]).within(priv, places[0]) ? places.length : 1; // a stretch is one place
-    const lead = (rule.lead && team.find(m => m.g === rule.lead && can(m))) || team.find(m => m.steps.includes(places[0])) || null;
-    const second = team.filter(m => m !== lead && next.includes(m.g) && can(m)).sort((x, y) => next.indexOf(x.g) - next.indexOf(y.g))[0] || null;
+    let lead, second;
+    if (rule.byGrade) [lead = null, second = null] = gradeSides(team, places[0], priv, seq || caseSteps, reached);
+    else {
+      lead = (rule.lead && team.find(m => m.g === rule.lead && can(m))) || team.find(m => m.steps.includes(places[0])) || null;
+      second = team.filter(m => m !== lead && next.includes(m.g) && can(m)).sort((x, y) => next.indexOf(x.g) - next.indexOf(y.g))[0] || null;
+    }
     team.forEach(m => { m.steps = m.steps.filter(k => baseKey(k) !== b); });
     spec = spec.filter(k => baseKey(k) !== b);
     const leadN = placeMajority(places.length), took = new Map();
