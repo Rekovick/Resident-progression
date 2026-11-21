@@ -62,7 +62,7 @@ const BASE = "http://localhost:8123/Resident-progression/";
   assert(await tr.evaluate(() => S.canEdit && S.me.role === "trainer"), "trainer can edit");
   const oldServer = await tr.evaluate(async () => { try { await call("noSuchAction"); return "no error"; } catch (e) { return dbErr(e); } });
   assert(/older version/.test(oldServer), "an action the server doesn't know says the server needs updating");
-  assert(await tr.evaluate(() => S.serverVersion === 3 && !document.body.innerText.includes("older version")), "no update warning on a current server");
+  assert(await tr.evaluate(() => S.serverVersion === 4 && !document.body.innerText.includes("older version")), "no update warning on a current server");
   await tr.evaluate(async () => {
     const date = "2026-11-01", c = newCase("em"); applyLib(c, libFind("trauma craniotomy")); c.title = "Trauma craniotomy";
     const rids = rotaDay(date).filter(id => run(S.residents[id]).level >= 1);
@@ -92,6 +92,15 @@ const BASE = "http://localhost:8123/Resident-progression/";
   });
   assert(r1 !== "wrong", "R1 may do burr holes and closure, not the critical step");
   assert(gas.api(ownerKey, "exportDocs")["cases/2026-11"].items.c1.consultant === "د.علاء احمد", "the server keeps the case's consultant");
+  const list = await tr.evaluate(() => {
+    const mk = id => { const c = newCase("el"); applyLib(c, libById(id)); c.title = libById(id).name; return c; };
+    const cases = [mk("b-lfix25"), mk("b-tfed"), mk("b-acdf2")];
+    const plans = planList(cases, [], "2026-11"), bad = [], wide = [];
+    plans.forEach((plan, i) => { const p = privOfCase(cases[i]); plan.team.forEach(t => { const st = surg(S.residents[t.id]); (t.steps || []).forEach(k => { if (!(t.stretch || []).includes(k) && !withinLimit(p, k, st.grade, st.E.level)) bad.push(cases[i].title + " " + t.id + ":" + k); }); if (new Set((t.stretch || []).map(baseKey)).size > 1 || (t.stretch || []).length > 1) wide.push(t.id); }); });
+    return { bad, wide, privs: cases.map(c => privOfCase(c).key), sizes: plans.map(p => p.team.length) };
+  });
+  assert(list.privs.join() === "plif,mis,acdf", "library cases from the other session carry their privilege list procedure " + list.privs.join());
+  assert(!list.bad.length && !list.wide.length, "an elective list (L2–S1 fixation, TFED, two-level ACDF) keeps every step within limits, one stretch at most " + list.bad.concat(list.wide).join(", "));
   const auto = await tr.evaluate(() => { const d = { case: newCase("em"), date: "2026-11-02", time: "10:00", specialist: "", consultant: "" }; emSurgeons(d); const a = [d.consultant, d.specialist]; d.consultant = "د.محمود كمال"; d.date = "2026-11-01"; emSurgeons(d); return a.concat([d.consultant, d.specialist]); });
   assert(auto[0] === "د.سلامة قريطم" && auto[1] === "د.احمد العشرى" && auto[2] === "د.محمود كمال" && auto[3] === "د.عبد الرحمن صالح", "emergency cases take the on-call consultant and specialist from the rota, keeping one changed by hand " + auto.join(" / "));
   const stored = gas.api(ownerKey, "exportDocs")["cases/2026-11"];

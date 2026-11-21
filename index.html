@@ -514,7 +514,7 @@ const STEP = {
   "cs.wash": ["Washing the hematoma", 5, 4], "cs.dura": ["Cauterization and dural opening", 5, 4], "cs.drain": ["Drain insertion", 5, 4],
   "sp.closure": ["Wound closure (elective)", 5, 4], "sp.inc": ["Wound incision", 5, 4], "sp.muscle": ["Muscle separation", 8, 6], "sp.hemo": ["Hemostasis", 5, 4],
   "sp.rod": ["Rod fixation", 5, 4], "sp.screw": ["Transpedicular screw fixation", 10, 8], "sp.lam": ["Laminectomy", 10, 8], "sp.disc": ["Discectomy", 10, 8], "sp.cage": ["Cage insertion", 5, 4],
-  "tp.inc": ["Skin incisions", 3, 2], "tp.thecal": ["Thecal end insertion", 5, 4], "tp.passer": ["Passer and fixation of both ends", 3, 2],
+  "tp.inc": ["Skin incision", 3, 2], "tp.thecal": ["Thecal end insertion", 5, 4], "tp.passer": ["Passer and fixation of both ends", 3, 2],
   // elective cranial steps (advanced cases such as parasagittal meningioma); not part of a ladder
   "ec.pos": ["Positioning and pin fixation", 5, 4], "ec.flap": ["Scalp flap and pericranial graft harvest", 5, 4],
   "ec.sinus": ["Craniotomy across the sinus (dural stripping, flap elevation)", 8, 6], "ec.duraopen": ["Dural opening based on the sinus", 5, 4],
@@ -526,6 +526,60 @@ const STEP = {
   "pf.duraopen": ["Y-shaped dural opening and cisterna magna release", 5, 4], "pf.dissect": ["Dissection from the brainstem and fourth ventricle floor", 10, 8],
   "pf.layers": ["Layered muscle and fascia closure", 5, 4],
   "sp.reduce": ["Listhesis reduction", 5, 4],
+  // anterior skull base: pneumocephalus and CSF leak repair through a bifrontal craniotomy
+  "sb.cranial": ["Frontal sinus cranialization (posterior wall removal, mucosa stripping, duct plugging)", 5, 4],
+  "sb.air": ["Dural opening and pneumocephalus evacuation", 3, 2],
+  "sb.repair": ["Anterior skull base defect repair (dural tear, fascia or fat graft)", 8, 6],
+  "sb.peri": ["Vascularized pericranial flap over the anterior fossa floor", 5, 4],
+  // olfactory groove meningioma through a bifrontal craniotomy
+  "og.sss": ["Anterior sagittal sinus ligation and falx division", 5, 4],
+  "og.nerves": ["Capsule dissection from optic nerves, chiasm and anterior cerebral arteries", 10, 8],
+  "og.base": ["Cribriform plate attachment drilling and dural base resection (Simpson grade)", 10, 8],
+  // anterior cervical discectomy and fusion; discectomy, decompression and cage are recorded per level ("ac.disc@LV1")
+  "ac.pos": ["Supine positioning with shoulder roll and neck extension", 5, 4],
+  "ac.level": ["Fluoroscopic level confirmation", 5, 4],
+  "ac.plane": ["Avascular plane between the carotid sheath and the trachea and oesophagus", 8, 6],
+  "ac.longus": ["Longus colli elevation and retractor placement", 5, 4],
+  "ac.disc": ["Anterior cervical discectomy and endplate preparation", 10, 8],
+  "ac.decomp": ["Posterior longitudinal ligament opening and osteophyte removal", 10, 8],
+  "ac.cage": ["Cervical cage sizing and insertion", 8, 6],
+  "ac.plate": ["Anterior plate and screw fixation", 8, 6],
+  // carotid endarterectomy
+  "ce.pos": ["Supine positioning with shoulder roll and head rotation", 5, 4],
+  "ce.platysma": ["Platysma division and dissection along the sternocleidomastoid", 5, 4],
+  "ce.sheath": ["Facial vein ligation and carotid sheath opening", 5, 4],
+  "ce.expose": ["Exposure of the common, internal and external carotid arteries, preserving the vagus and hypoglossal nerves", 8, 6],
+  "ce.clamp": ["Heparinization and clamping (internal, common, external carotid)", 5, 4],
+  "ce.arteriotomy": ["Arteriotomy", 5, 4],
+  "ce.shunt": ["Shunt insertion", 5, 4],
+  "ce.plaque": ["Plaque removal and distal endpoint tacking", 10, 8],
+  "ce.repair": ["Arteriotomy repair (primary or patch angioplasty)", 10, 8],
+  "ce.unclamp": ["Flushing and unclamping sequence (external, common, internal carotid)", 5, 4],
+  "ce.drain": ["Drain placement", 3, 2],
+  "ce.platclose": ["Platysma closure", 5, 4],
+  // lumbar debridement (wound infection, spondylodiscitis)
+  "ld.sample": ["Pus and tissue sampling for culture", 3, 2],
+  "ld.debride": ["Debridement of necrotic tissue and infected granulation", 8, 6],
+  "ld.hardware": ["Implant assessment (retain, wash or remove)", 5, 4],
+  "ld.disc": ["Disc space curettage", 5, 4],
+  "ld.wash": ["Pulsed saline irrigation", 3, 2],
+  // transforaminal endoscopic lumbar discectomy
+  "te.pos": ["Prone positioning and fluoroscopic level marking", 5, 4],
+  "te.needle": ["Needle and guidewire placement under fluoroscopy", 8, 6],
+  "te.dilate": ["Serial dilation and working cannula placement", 5, 4],
+  "te.foramen": ["Foraminoplasty (reamer or drill)", 8, 6],
+  "te.disc": ["Endoscopic discectomy and root decompression", 10, 8],
+  "te.hemo": ["Radiofrequency hemostasis", 5, 4],
+  "te.close": ["Portal skin closure", 3, 2],
+  // unilateral pterional (frontotemporal) approach
+  "pt.fascia": ["Interfascial dissection protecting the frontal branch of the facial nerve", 5, 4],
+  "pt.temporalis": ["Temporalis muscle incision and reflection", 5, 4],
+  "pt.crani": ["Frontotemporal craniotomy (flap elevation)", 5, 4],
+  "pt.sphenoid": ["Sphenoid ridge drilling", 5, 4],
+  "pt.duraopen": ["Curvilinear dural opening based on the sphenoid ridge", 5, 4],
+  "pt.sylvian": ["Sylvian fissure split and basal cistern opening", 8, 6],
+  "pt.lesion": ["Lesion work through the approach (tumour, aneurysm or other target)", 10, 8],
+  "pt.layers": ["Temporalis muscle and fascia closure", 5, 4],
 };
 const SHARED_NOTE = { "em.closure": "Shared across emergency cases", "em.burr": "Shared across emergency cases", "em.incision": "Shared across emergency cases", "em.hemo": "Shared across emergency cases", "ab.exp": "Shared with TP shunt", "sp.closure": "Shared by spine and TP shunt; opens after 10 emergency closures" };
 const PROCS = {
@@ -541,7 +595,7 @@ const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
 const CASE_LADDERS = ["cranio", "vent", "csdh", "lp", "spine", "tp"];
 const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
 /* Built-in steps outside the ladders, offered in the case editor's step picker. */
-const EXTRA_STEPS = [{ name: "Elective spine", steps: ["sp.reduce"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers"] }];
+const EXTRA_STEPS = [{ name: "Cervical spine", steps: ["ac.pos", "ac.level", "ac.plane", "ac.longus", "ac.disc", "ac.decomp", "ac.cage", "ac.plate"] }, { name: "Elective spine", steps: ["sp.reduce", "ld.sample", "ld.debride", "ld.hardware", "ld.disc", "ld.wash", "te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base"] }, { name: "Vascular", steps: ["ce.pos", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "ce.drain", "ce.platclose"] }];
 const groupOf = lvl => lvl >= 6 ? "S" : lvl >= 4 ? "M" : lvl >= 1 ? "J" : "A";
 const GROUP_NAME = { J: "Junior", M: "Midsenior", S: "Senior", A: "Attached" };
 const GROUP_PLURAL = { S: "Seniors", M: "Midseniors", J: "Juniors", A: "Attached" };
@@ -567,8 +621,29 @@ const LIB_BUILTIN = [
   { id: "b-lp", name: "Lumbar puncture", cat: "em", ladder: "lp", steps: [] },
   { id: "b-spine", name: "Spine fixation", cat: "el", ladder: "spine", steps: PROCS.spine.steps },
   { id: "b-lfix1", name: "Lumbar fixation without cage, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam"] },
+  { id: "b-pneumo", name: "Pneumocephalus evacuation and skull base repair", aliases: ["Pneumocephaly evacuation", "Bifrontal craniotomy and frontal sinus cranialization", "Anterior skull base repair", "CSF leak repair"], cat: "adv", ladder: "",
+    steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
+  { id: "b-ogm", name: "Olfactory groove meningioma excision", aliases: ["OGM excision", "Olfactory groove meningioma", "Bifrontal craniotomy for olfactory groove meningioma"], cat: "adv", ladder: "",
+    steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "sb.cranial", "cr.hitch", "og.sss", "ec.debulk", "og.nerves", "og.base", "sb.repair", "sb.peri", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
+  { id: "b-acdf2", name: "ACDF, 2 levels", aliases: ["Anterior cervical discectomy and fusion, 2 levels", "Two-level ACDF", "ACDF 2 levels", "Cervical discectomy, 2 levels"], cat: "adv", ladder: "",
+    steps: ["ac.pos", "ac.level", "em.incision", "ce.platysma", "ac.plane", "ac.longus", "ac.disc@LV1", "ac.decomp@LV1", "ac.cage@LV1", "ac.disc@LV2", "ac.decomp@LV2", "ac.cage@LV2", "ac.plate", "cr.final", "ce.drain", "ce.platclose", "em.closure"] },
+  { id: "b-cea", name: "Carotid endarterectomy", aliases: ["CEA", "Carotid endarterectomy (CEA)", "Endarterectomy"], cat: "adv", ladder: "",
+    steps: ["ce.pos", "em.incision", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "cr.final", "ce.drain", "ce.platclose", "em.closure"] },
+  { id: "b-ldeb", name: "Lumbar debridement", aliases: ["Lumbar wound debridement", "Spinal infection debridement", "Spondylodiscitis debridement", "Lumbar wound infection"], cat: "adv", ladder: "",
+    slots: ["SM", "J"], steps: ["sp.inc", "ld.sample", "ld.debride", "ld.hardware", "ld.disc", "ld.wash", "sp.hemo", "ce.drain", "sp.closure"] },
+  // slots: the team this case takes ("SM" is one place for a senior or a midsenior)
+  { id: "b-tfed", name: "Transforaminal endoscopic lumbar discectomy", aliases: ["TFED", "PELD", "Endoscopic transforaminal discectomy", "Percutaneous endoscopic lumbar discectomy", "Transforaminal endoscopic discectomy"], cat: "adv", ladder: "",
+    slots: ["SM", "J"], steps: ["te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] },
+  { id: "b-pterional", name: "Pterional approach, unilateral", aliases: ["Unilateral pterional craniotomy", "Pterional craniotomy", "Frontotemporal craniotomy"], cat: "adv", ladder: "",
+    steps: ["ec.pos", "em.incision", "pt.fascia", "pt.temporalis", "em.burr", "pt.crani", "pt.sphenoid", "cr.hitch", "pt.duraopen", "pt.sylvian", "pt.lesion", "cr.final", "ec.dura", "ec.bone", "pt.layers", "em.closure"] },
+  { id: "b-lfen", name: "Lumbar interlaminar fenestration, 1 level", aliases: ["Lumbar fenestration", "Fenestration alone", "Interlaminar fenestration"], cat: "el", ladder: "spine",
+    steps: ["sp.closure", "sp.inc", "sp.muscle", "sp.hemo", "sp.lam@FEN"] },
+  { id: "b-lidisc", name: "Lumbar interlaminar discectomy, 1 level", aliases: ["Lumbar microdiscectomy", "Interlaminar fenestration and discectomy", "Lumbar disc prolapse"], cat: "el", ladder: "spine",
+    steps: ["sp.closure", "sp.inc", "sp.muscle", "sp.hemo", "sp.lam@FEN", "sp.disc"] },
+  { id: "b-lfix25", name: "Lumbar fixation and decompression, L2 to S1", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@L2L", "sp.screw@L2R", "sp.screw@L3L", "sp.screw@L3R", "sp.screw@L4L", "sp.screw@L4R", "sp.screw@L5L", "sp.screw@L5R", "sp.screw@S1L", "sp.screw@S1R", "sp.lam@L2", "sp.lam@L3", "sp.lam@L4", "sp.lam@L5"] },
   { id: "b-lfix1c", name: "Lumbar fixation with cage and reduction, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam", "sp.disc", "sp.cage", "sp.reduce"] },
-  { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: PROCS.tp.steps },
+  // the back and abdominal incisions are separate places, so two residents open at the same time
+  { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: ["sp.closure", "tp.inc@BACK", "tp.inc@ABD", "ab.exp", "tp.thecal", "tp.passer"] },
   { id: "b-psm", name: "Parasagittal meningioma excision", cat: "adv", ladder: "", steps: ["ec.pos", "em.incision", "ec.flap", "em.burr", "ec.sinus", "cr.hitch", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "cr.final", "ec.dura", "ec.bone", "em.closure"] },
   { id: "b-pft", name: "Posterior fossa tumor excision", cat: "adv", ladder: "", steps: ["pf.pos", "em.incision", "pf.muscle", "em.burr", "pf.crani", "pf.c1", "em.hemo", "pf.duraopen", "ec.debulk", "pf.dissect", "cr.final", "ec.dura", "ec.bone", "pf.layers", "em.closure"] },
 ];
@@ -704,23 +779,26 @@ const catChip = id => `<span class="chip tone tone-${catTone(id)}">${esc(catOf(i
 /* steps: built-in counters plus the program's own steps added from the case library */
 /* A step can be done in several places in one case: "sp.muscle@L" is the left side of muscle separation,
    "sp.screw@UL" the upper left screw. Each place is assigned and recorded on its own and counts toward the step's one counter. */
-const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right" };
+const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right",
+  FEN: "interlaminar fenestration", BACK: "back", ABD: "abdomen", LV1: "first level", LV2: "second level", LV3: "third level" }; // "sp.lam@FEN": flavectomy and partial laminotomy, counted toward laminectomy
+// levels: "L2" is the L2 lamina, "L2L" the left L2 screw
+const placeName = p => PLACE[p] || (/^\d+$/.test(p) ? "again, " + p : String(p)).replace(/^([CTLS]\d{1,2})(L|R)$/, (_, lv, sd) => `${lv} ${PLACE[sd]}`);
 const baseKey = k => String(k || "").split("@")[0];
 /* Places of one step are shared, never all to one resident. The lead takes the majority (one of two sides,
    three of four screws); the rest go to the first resident on the team from "next" who may do the step, else to the specialist.
    lead: the level that leads when it is on the team and may do the step (otherwise whoever the ladder gives the first place).
-   below: levels that may take their share under their limit, with the specialist scrubbed. */
+   Only a resident the privilege list allows the step takes places; one doing it as their stretch step takes a single place. */
 const PLACE_SHARE = {
   "sp.muscle": { next: ["J", "S", "M"] },        // the other side: a junior already allowed the step, else the senior
-  "sp.screw": { lead: "S", next: ["M"], below: ["M"] }, // the senior places most screws, the midsenior the rest
+  "sp.screw": { lead: "S", next: ["M"] },       // the senior places most screws, the midsenior the rest when allowed
+  "sp.lam": { next: [] },
+  "tp.inc": { follow: { ABD: "ab.exp" } },          // follow: the abdominal incision goes with the peritoneal exposure, the back one to the other resident                          // multilevel laminectomy: whoever the ladder gives it takes most levels, the specialist the rest
 };
-/* In Advanced cases these steps go to the senior assisting the specialist, not to the closer. */
-const ADV_SENIOR = ["ec.dura"];
 const placeMajority = n => n <= 2 ? 1 : Math.floor(n / 2) + 1;
 const placeOf = k => { const i = String(k || "").indexOf("@"); return i < 0 ? "" : k.slice(i + 1); };
 function stepDef(k) {
   const place = placeOf(k);
-  if (place) { const d = stepDef(baseKey(k)); return Object.assign({}, d, { label: `${d.label} (${PLACE[place] || place})` }); }
+  if (place) { const d = stepDef(baseKey(k)); return Object.assign({}, d, { label: `${d.label} (${placeName(place)})` }); }
   if (STEP[k]) return { label: STEP[k][0], n: STEP[k][1], nb: STEP[k][2] };
   const c = (S.settings.customSteps || {})[k];
   const n = c ? Math.max(1, +c.n || 5) : 5;
@@ -853,9 +931,12 @@ const KIND_STEPS = {
 const privSteps = p => uniq((KIND_STEPS[p.kind] || KIND_STEPS.none)(p.crit).filter(Boolean));
 /* Every procedure on the list is in the case library; the ladder procedures already there take theirs. */
 {
-  const ladderPriv = { "b-cranio": "edh", "b-vent": "vps", "b-csdh": "csdh", "b-lp": "lp", "b-spine": "plif", "b-lfix1": "plif", "b-lfix1c": "plif", "b-tp": "vps", "b-psm": "psm", "b-pft": "pfcrani" };
+  const ladderPriv = { "b-cranio": "edh", "b-vent": "vps", "b-csdh": "csdh", "b-lp": "lp", "b-spine": "plif", "b-lfix1": "plif", "b-lfix1c": "plif", "b-lfix25": "plif", "b-tp": "vps", "b-psm": "psm", "b-pft": "pfcrani",
+    "b-ogm": "sbmen", "b-acdf2": "acdf", "b-cea": "cea", "b-ldeb": "sea", "b-tfed": "mis", "b-lfen": "lami", "b-lidisc": "microdisc" };
+  // the pneumocephalus repair and the pterional approach aren't on the list: they take the Advanced default
   LIB_BUILTIN.forEach(b => { if (ladderPriv[b.id]) b.priv = ladderPriv[b.id]; });
-  const taken = new Set(Object.values(ladderPriv).concat(["positioning"]));
+  // a library case that is the whole procedure stands for it; one that is a single kind of it (two-level ACDF, OGM) leaves the general entry
+  const taken = new Set(["edh", "vps", "csdh", "lp", "plif", "psm", "pfcrani", "cea", "microdisc", "positioning"]);
   PRIV.filter(p => !taken.has(p.key)).forEach(p => LIB_BUILTIN.push({ id: "p-" + p.key, name: p.short, cat: p.cat >= 3 ? "adv" : p.em ? "em" : "el", ladder: "", steps: privSteps(p), priv: p.key }));
 }
 /* What kind of step each counter is, for the per-step table. */
@@ -869,6 +950,13 @@ const STEP_TYPE = {
   "ec.pos": "pos", "ec.flap": "expose", "ec.sinus": "bone", "ec.duraopen": "dura", "ec.debulk": "crit", "ec.dissect": "crit", "ec.attach": "crit", "ec.dura": "hemo", "ec.bone": "close",
   "pf.pos": "pos", "pf.muscle": "expose", "pf.crani": "bone", "pf.c1": "bone", "pf.duraopen": "dura", "pf.dissect": "crit", "pf.layers": "close",
   "g.crani": "bone", "g.duraopen": "dura", "g.sppos": "pos", "g.antexp": "expose", "g.endo": "bone", "g.nerveexp": "expose",
+  "sb.cranial": "bone", "sb.air": "dura", "sb.repair": "crit", "sb.peri": "hemo",
+  "og.sss": "crit", "og.nerves": "crit", "og.base": "crit",
+  "ac.pos": "pos", "ac.level": "expose", "ac.plane": "expose", "ac.longus": "expose", "ac.disc": "crit", "ac.decomp": "crit", "ac.cage": "crit", "ac.plate": "crit",
+  "ce.pos": "pos", "ce.platysma": "expose", "ce.sheath": "expose", "ce.expose": "crit", "ce.clamp": "crit", "ce.arteriotomy": "crit", "ce.shunt": "crit", "ce.plaque": "crit", "ce.repair": "crit", "ce.unclamp": "crit", "ce.drain": "close", "ce.platclose": "close",
+  "ld.sample": "expose", "ld.debride": "crit", "ld.hardware": "crit", "ld.disc": "crit", "ld.wash": "close",
+  "te.pos": "pos", "te.needle": "crit", "te.dilate": "bone", "te.foramen": "bone", "te.disc": "crit", "te.hemo": "hemo", "te.close": "close",
+  "pt.fascia": "expose", "pt.temporalis": "expose", "pt.crani": "bone", "pt.sphenoid": "bone", "pt.duraopen": "dura", "pt.sylvian": "crit", "pt.lesion": "crit", "pt.layers": "close",
 };
 const STEP_TYPE_NAME = { pos: "Positioning", expose: "Incision and exposure", burr: "Burr holes", bone: "Bone opening", dura: "Dural opening", hemo: "Hemostasis and dural closure", close: "Closure", crit: "Critical step" };
 /* The most junior grade for each kind of step: [Category 1–2, Category 3–4] (1 R1, 2 R2–R3, 4 R4, 5 R5).
@@ -1020,7 +1108,7 @@ function cx() {
     });
     const spec = normName(c.specialist);
     Object.entries(c.out || {}).forEach(([k, o]) => {
-      if (!o || !o.who || o.who === "spec") return;
+      if (!o || !o.who || o.who === "spec" || o.who === NOT_DONE) return;
       const r = get(o.who);
       turn(r, k);
       if (!o.o) return;
@@ -1333,25 +1421,42 @@ function sharePlaces(seq, caseSteps, team, specialistSteps, priv) {
   let spec = specialistSteps.slice();
   Object.entries(groups).forEach(([b, places]) => {
     if (places.length < 2) return;
-    const rule = PLACE_SHARE[b] || {}, next = rule.next || ["J", "M", "S"], below = rule.below || [];
-    const can = m => surg(S.residents[m.id]).allowed(seq, places[0], priv) || below.includes(m.g);
+    const rule = PLACE_SHARE[b] || {}, next = rule.next || ["J", "M", "S"];
+    const can = m => surg(S.residents[m.id]).allowed(seq, places[0], priv);
+    const cap = m => surg(S.residents[m.id]).within(priv, places[0]) ? places.length : 1; // a stretch is one place
     const lead = (rule.lead && team.find(m => m.g === rule.lead && can(m))) || team.find(m => m.steps.includes(places[0])) || null;
     const second = team.filter(m => m !== lead && next.includes(m.g) && can(m)).sort((x, y) => next.indexOf(x.g) - next.indexOf(y.g))[0] || null;
     team.forEach(m => { m.steps = m.steps.filter(k => baseKey(k) !== b); });
     spec = spec.filter(k => baseKey(k) !== b);
-    const leadN = placeMajority(places.length);
-    places.forEach((k, i) => { const to = i < leadN ? lead : second; if (to) to.steps.push(k); else spec.push(k); });
+    const leadN = placeMajority(places.length), took = new Map();
+    places.forEach((k, i) => {
+      const to = i < leadN ? lead : second;
+      if (to && (took.get(to) || 0) < cap(to)) { to.steps.push(k); took.set(to, (took.get(to) || 0) + 1); } else spec.push(k);
+    });
+    // a place that belongs with another step swaps to whoever does that step, when they hold another place of this group
+    Object.entries(rule.follow || {}).forEach(([pl, step]) => {
+      const k = places.find(x => placeOf(x) === pl); if (!k) return;
+      const y = team.find(m => m.steps.some(x => baseKey(x) === step)), x = team.find(m => m.steps.includes(k));
+      const q = y && y !== x && y.steps.find(z => baseKey(z) === b);
+      if (q && x) { y.steps[y.steps.indexOf(q)] = k; x.steps[x.steps.indexOf(k)] = q; }
+    });
     [lead, second].forEach(m => {
       if (!m) return;
       const n = m.steps.filter(k => baseKey(k) === b).length;
       if (m.role === "observes") m.why = m.why.replace("Observes: no steps left at their position on this ladder", "Shared places only");
-      m.why += `. ${stepLabel(b)}: ${n} of ${places.length}${!surg(S.residents[m.id]).allowed(seq, places[0], priv) ? ", above their limit, so the surgeon of record scrubs in" : ""}`;
+      if (n) m.why += `. ${stepLabel(b)}: ${n} of ${places.length}${!surg(S.residents[m.id]).within(priv, places[0]) ? ", a stretch above their limit, so the surgeon of record scrubs in" : ""}`;
     });
   });
   const order = k => caseSteps.indexOf(k);
-  team.forEach(m => { m.steps.sort((x, y) => order(x) - order(y)); m.role = m.steps.length ? "performs" : "observes"; });
+  team.forEach(m => {
+    m.steps.sort((x, y) => order(x) - order(y)); m.role = m.steps.length ? "performs" : "observes";
+    if (priv) m.stretch = m.steps.filter(k => !surg(S.residents[m.id]).within(priv, k));
+  });
   return { team, specialistSteps: spec.sort((x, y) => order(x) - order(y)) };
 }
+/* The team a case takes, from its library entry; cases without one take a senior, a midsenior and a junior.
+   Who closes follows the privilege list step by step (planByStep): the most junior resident allowed. */
+const caseShape = c => { const e = libById(c.libId || c.lib) || {}; return { slots: e.slots || ["S", "M", "J"] }; };
 function planEmergency(c, rids, ym) {
   const valid = rids.filter(id => S.residents[id]);
   if (isLP(c)) return planLP(valid);
@@ -1385,26 +1490,28 @@ function planList(cases, unavailable, ym) {
   const used = new Set();
   const pool = Object.keys(S.residents).filter(id => !unavailable.includes(id) && run(S.residents[id]).level >= 1);
   const slots = [];
-  cases.forEach((c, ci) => ["S", "M", "J"].forEach(g => slots.push({ ci, g, id: null, why: "" })));
+  cases.forEach((c, ci) => caseShape(c).slots.forEach(g => slots.push({ ci, g, gs: g.split(""), id: null, why: "" })));
+  // fixed places first, so a "senior or midsenior" place takes whoever is left rather than another case's senior
+  slots.sort((a, b) => a.gs.length - b.gs.length);
   const cnt = id => casesThisMonth(id, ym) + (extra[id] || 0);
   const minOf = id => SURG_MIN[LEVELS[run(S.residents[id]).level].key] || 0;
   const place = (slot, id, why) => { slot.id = id; slot.why = why; used.add(id); extra[id] = (extra[id] || 0) + 1; };
   // round 1: minimums, furthest behind first
   slots.forEach(slot => {
-    const c = pool.filter(id => !used.has(id) && groupOf(run(S.residents[id]).level) === slot.g && cnt(id) < minOf(id))
+    const c = pool.filter(id => !used.has(id) && slot.gs.includes(groupOf(run(S.residents[id]).level)) && cnt(id) < minOf(id))
       .sort((a, b) => (minOf(b) - cnt(b)) - (minOf(a) - cnt(a)) || (cxOf(a).lastDate || "").localeCompare(cxOf(b).lastDate || ""));
     if (c.length) place(slot, c[0], `Below the monthly minimum (${cnt(c[0])} of ${minOf(c[0])} cases)`);
   });
   // round 2: reward pool by priority score; holds and repeated no-shows get no spare places
   slots.filter(s => !s.id).forEach(slot => {
     const cs = cases[slot.ci], seq = caseSeq(cs), steps = orderedSteps(cs);
-    const c = pool.filter(id => { const E = run(S.residents[id]); return !used.has(id) && groupOf(E.level) === slot.g && !E.holdNow && !E.rewardExcluded && !reliability(id).offender; })
+    const c = pool.filter(id => { const E = run(S.residents[id]); return !used.has(id) && slot.gs.includes(groupOf(E.level)) && !E.holdNow && !E.rewardExcluded && !reliability(id).offender; })
       .map(id => ({ id, pri: priority(id, seq, steps, ym, extra[id] || 0, privOfCase(cs)) })).sort(byPriority);
     if (c.length) place(slot, c[0].id, `Reward pool. ${priText(c[0].pri)}`);
-    else slot.why = `No ${GROUP_NAME[slot.g].toLowerCase()} available`;
+    else slot.why = `No ${slot.gs.map(g => GROUP_NAME[g].toLowerCase()).join(" or ")} available`;
   });
   return cases.map((cs, ci) => {
-    const members = slots.filter(s => s.ci === ci && s.id).map(s => ({ id: s.id, why: s.why, g: s.g }));
+    const members = slots.filter(s => s.ci === ci && s.id).map(s => ({ id: s.id, why: s.why, g: groupOf(run(S.residents[s.id]).level) }));
     const empty = slots.filter(s => s.ci === ci && !s.id).map(s => s.why);
     if (isLP(cs)) return Object.assign(planLP(members.map(m => m.id)), { empty });
     const priv = privOfCase(cs);
@@ -1495,7 +1602,8 @@ function toast(msg) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
 }
 /* Says why a save failed: a server refusal is not a dropped connection. */
-const SERVER_NEEDED = 3;
+const SERVER_NEEDED = 2;
+const SERVER_LATEST = 4; // 3: review links record steps not done and steps added for the case; 4: the consultant and the "did it alone" rating
 function dbErr(e) {
   const c = String((e && (e.code || e.message)) || ""), msg = String((e && e.message) || "");
   if (c === "quota_exceeded") return "The tracker's storage is full.";
@@ -1525,13 +1633,24 @@ async function deleteResident(id) {
   if (local()) { delete S.residents[id]; invalidate(); render(); return; }
   try { await S.db.doc("residents/" + id).delete(); } catch (e) { toast(dbErr(e)); }
 }
+/* The server merges an update into the stored record field by field, so a field left out stays as it was.
+   This marks every field the new version drops (an answer, the steps added for a case) as null so it goes. */
+function withRemovals(old, next) {
+  if (!old || !next || typeof old !== "object" || typeof next !== "object" || Array.isArray(old) || Array.isArray(next)) return next;
+  const out = Object.assign({}, next);
+  Object.keys(old).forEach(k => {
+    if (!(k in next)) { if (old[k] !== null) out[k] = null; }
+    else out[k] = withRemovals(old[k], next[k]);
+  });
+  return out;
+}
 async function saveCases(map) { // map: {id: caseObj|null}
   const byYM = {};
   Object.entries(map).forEach(([id, c]) => { const ym = c ? c.date.slice(0, 7) : (allCases().find(x => x.id === id) || {}).ym; if (ym) (byYM[ym] = byYM[ym] || {})[id] = c; });
   for (const [ym, items] of Object.entries(byYM)) {
     if (local()) { const d = S.caseDocs[ym] = S.caseDocs[ym] || { items: {} }; Object.assign(d.items, clone(items)); continue; }
     try {
-      if (S.caseDocs[ym]) await S.db.doc("cases/" + ym).update({ items });
+      if (S.caseDocs[ym]) await S.db.doc("cases/" + ym).update({ items: Object.fromEntries(Object.entries(items).map(([id, c]) => [id, withRemovals(((S.caseDocs[ym] || {}).items || {})[id], c)])) });
       else await S.db.doc("cases/" + ym).set({ items });
     } catch (e) { toast(dbErr(e)); return false; }
   }
@@ -1661,24 +1780,28 @@ const callT = (fn, ...args) => post(S.survey.s, { t: S.survey.t, fn, args });
 const svName = rid => { const n = S.sv && S.sv.info && S.sv.info.names[rid]; return (n && n.name) || "A resident"; };
 const svLevel = rid => { const n = S.sv && S.sv.info && S.sv.info.names[rid]; return n ? n.level : 0; };
 const svSteps = c => (c.steps && c.steps.length ? c.steps : uniq(c.team.flatMap(t => t.steps || []).concat(c.specialistSteps || [])));
+// the case's own steps, then any the specialist added for this case
+const svBase = c => svSteps(c).filter(k => !(c.added || []).includes(k));
+const svAll = v => uniq(svBase(v.info.case).concat(v.ans.added));
 const svPlanned = (c, k) => { const m = c.team.find(t => (t.steps || []).includes(k)); return m ? m.rid : (c.specialistSteps || []).includes(k) ? "spec" : ""; };
 function svStart(info) {
   const c = info.case, done = c.status === "done";
   const att = {}, out = {};
   c.team.forEach(t => { att[t.rid] = { att: done && t.att ? t.att : "on", reason: t.reason || "" }; });
-  svSteps(c).forEach(k => {
+  const added = (c.added || []).filter(k => svSteps(c).includes(k));
+  svBase(c).concat(added).forEach(k => {
     const o = (c.out || {})[k];
     if (done && o && o.who) out[k] = { who: o.who, o: o.o || null };
     else { const p = svPlanned(c, k); out[k] = { who: p, o: null }; }
   });
-  S.sv = { info, sent: false, err: "", missing: [], ans: { status: done ? "done" : (c.status === "postponed" || c.status === "cancelled" ? c.status : "done"), specialist: c.specialist || "", att, extra: (c.extra || []).map(x => x.rid), out, lp: c.lp ? c.lp.result || null : null } };
+  S.sv = { info, sent: false, err: "", missing: [], ans: { status: done ? "done" : (c.status === "postponed" || c.status === "cancelled" ? c.status : "done"), specialist: c.specialist || "", att, extra: (c.extra || []).map(x => x.rid), out, added, lp: c.lp ? c.lp.result || null : null } };
 }
 const svPresent = a => Object.keys(a.att).filter(r => a.att[r].att === "on" || a.att[r].att === "late").concat(a.extra);
 function surveyView() {
   const v = S.sv;
   if (!v) return `<div class="survey"><div class="qcard"><p class="muted">Loading the case…</p></div></div>`;
   if (v.fatal) return `<div class="survey"><div class="qcard"><div class="htitle"><span class="tile tone-rose">${ic("alert")}</span><h1>Can't open this case</h1></div><p>${esc(v.fatal)}</p></div></div>`;
-  const c = v.info.case, a = v.ans, lp = isLP(c), steps = svSteps(c), present = svPresent(a);
+  const c = v.info.case, a = v.ans, lp = isLP(c), steps = svAll(v), present = svPresent(a);
   const head = `<div class="qcard"><div class="htitle"><span class="tile tone-teal">${ic("clipboardCheck")}</span><div class="stack" style="gap:2px"><span class="eyebrow">Case review · ${esc(dayLabel(c.date))}${c.time ? " · " + esc(c.time) : ""}</span><h1 style="font-size:24px">${esc(caseTitle(c))}</h1></div></div>
     <p class="small muted">${c.consultant ? "Surgeon of record: " + esc(c.consultant) + ". " : ""}Tap what happened. It goes straight to the residency tracker. Nothing here is shared with the residents.</p></div>`;
   if (v.sent) return `<div class="survey">${head}<div class="qcard"><div class="htitle"><span class="tile tone-green">${ic("check")}</span><h2>Recorded. Thank you${a.specialist ? ", " + esc(a.specialist) : ""}.</h2></div>
@@ -1704,11 +1827,14 @@ function surveyView() {
       const working = r => a.extra.includes(r) || c.team.some(t => t.rid === r && (t.steps || []).length) || r === o.who;
       const all = uniq((planned && planned !== "spec" && present.includes(planned) ? [planned] : []).concat(present));
       const more = (v.more || {})[k], who = more ? all : all.filter(working), hidden = all.length - who.length;
-      return `<div class="qcard ${miss ? "missing" : ""}"><span class="hint">Step ${n + 1} of ${steps.length}</span><h2>${esc(stepLabel(k))}</h2>
+      const added = a.added.includes(k);
+      return `<div class="qcard ${miss ? "missing" : ""}"><span class="hint">Step ${n + 1} of ${steps.length}${added ? ` · added for this case · <button type="button" class="linkbtn" data-act="sv-rm" data-k="${k}">Remove</button>` : ""}</span><h2>${esc(stepLabel(k))}</h2>
         <span class="q">Who did it?</span>
-        <div class="choices">${who.map(r => ch("sv-who", r, o.who, esc(svName(r)) + (r === planned ? " <small>planned</small>" : ""), "", `data-k="${k}"`)).join("")}${ch("sv-who", "spec", o.who, "I did" + (planned === "spec" ? " <small>planned</small>" : ""), "", `data-k="${k}"`)}${hidden ? `<button type="button" class="choice" data-act="sv-more" data-k="${k}">Someone else <small>${hidden}</small></button>` : ""}</div>
-        ${o.who && o.who !== "spec" ? `<span class="q">How did it go?</span><div class="choices">${(v.info.serverVersion || 0) >= 3 ? ch("sv-o", "ind", o.o, ic("check") + "Did it alone", "good", `data-k="${k}"`) : ""}${ch("sv-o", "sat", o.o, ic("check") + ((v.info.serverVersion || 0) >= 3 ? "I helped only when needed" : "Done well"), "good", `data-k="${k}"`)}${ch("sv-o", "help", o.o, "I helped actively", "mid", `data-k="${k}"`)}${ch("sv-o", "taken", o.o, "I took over", "bad", `data-k="${k}"`)}</div>` : ""}</div>`;
+        <div class="choices">${who.map(r => ch("sv-who", r, o.who, esc(svName(r)) + (r === planned ? " <small>planned</small>" : ""), "", `data-k="${k}"`)).join("")}${ch("sv-who", "spec", o.who, "I did" + (planned === "spec" ? " <small>planned</small>" : ""), "", `data-k="${k}"`)}${hidden ? `<button type="button" class="choice" data-act="sv-more" data-k="${k}">Someone else <small>${hidden}</small></button>` : ""}${added ? "" : ch("sv-who", NOT_DONE, o.who, "Not done", "", `data-k="${k}"`)}</div>
+        ${o.who && o.who !== "spec" && o.who !== NOT_DONE ? `<span class="q">How did it go?</span><div class="choices">${(v.info.serverVersion || 0) >= 4 ? ch("sv-o", "ind", o.o, ic("check") + "Did it alone", "good", `data-k="${k}"`) : ""}${ch("sv-o", "sat", o.o, ic("check") + ((v.info.serverVersion || 0) >= 4 ? "I helped only when needed" : "Done well"), "good", `data-k="${k}"`)}${ch("sv-o", "help", o.o, (v.info.serverVersion || 0) >= 4 ? "I helped actively" : "Needed help", "mid", `data-k="${k}"`)}${ch("sv-o", "taken", o.o, "I took over", "bad", `data-k="${k}"`)}</div>` : ""}</div>`;
     }).join("") || `<div class="qcard"><p class="small muted">No resident steps on this case.</p></div>`;
+    body += `<div class="qcard"><span class="q">Was anything else done?</span><span class="hint">Add a step done in this case. It's asked like the others.</span>
+      <select id="sv-add" data-svadd="1" aria-label="Add a step done in this case"><option value="">Add a step…</option>${stepOptions([])}</select></div>`;
   }
   return `<div class="survey">${head}${status}${came}${body}${name}${sendBar(v)}</div>`;
 }
@@ -1723,11 +1849,11 @@ async function svSend() {
   if (a.status === "done") {
     const present = svPresent(a);
     if (isLP(c)) { if (!a.lp) v.missing.push("lp"); }
-    else svSteps(c).forEach(k => { const o = a.out[k]; if (!o.who || (o.who !== "spec" && (!present.includes(o.who) || !o.o))) v.missing.push(k); });
+    else svAll(v).forEach(k => { const o = a.out[k]; if (!o.who || (o.who !== "spec" && o.who !== NOT_DONE && (!present.includes(o.who) || !o.o))) v.missing.push(k); });
   }
   if (v.missing.length) { v.err = v.missing.includes("name") && v.missing.length === 1 ? "Enter your name." : "Answer the questions marked in red."; render(); const el = document.querySelector(".qcard.missing"); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); return; }
   v.err = ""; v.busy = true; render();
-  try { await callT("submitSurvey", a); v.sent = true; }
+  try { const steps = svAll(v); await callT("submitSurvey", Object.assign({}, a, { out: Object.fromEntries(Object.entries(a.out).filter(([k]) => steps.includes(k))) })); v.sent = true; }
   catch (e) { v.err = e.code === "LINK_EXPIRED" ? "This link has expired. Ask for a new one." : e.code === "CASE_GONE" ? "This case was removed from the tracker." : e.server ? "The tracker refused this: " + e.message : "Couldn't send. Check your connection and try again."; }
   v.busy = false; render(); window.scrollTo(0, 0);
 }
@@ -1813,7 +1939,8 @@ function banner() {
   const out = [];
   if (TEST_COPY) out.push(`<div class="banner">Test copy. Records here are separate from the real tracker, so try anything: nothing you do here changes it.</div>`);
   if (S.mode === "offline") out.push(`<div class="banner">This copy is not connected to the shared tracker, so changes stay in this tab and are lost when it closes. Open the tracker from its claude.ai link to save records.</div>`);
-  if (S.app && S.canEdit && S.serverVersion && S.serverVersion < SERVER_NEEDED) out.push(`<div class="banner">${ic("alert")}The tracker's server is an older version, so ${S.serverVersion < 2 ? "review links don't work yet" : "review links can't offer \"did it alone\" or show the consultant yet"}. Paste the new Code.gs from the launch kit, then Deploy, Manage deployments, Edit, New version, Deploy.</div>`);
+  if (S.app && S.canEdit && S.serverVersion && S.serverVersion < SERVER_NEEDED) out.push(`<div class="banner">${ic("alert")}The tracker's server is an older version, so review links can't be made yet. Paste the new Code.gs from the launch kit, then Deploy, Manage deployments, Edit, New version, Deploy.</div>`);
+  else if (S.app && S.canEdit && S.serverVersion && S.serverVersion < SERVER_LATEST) out.push(`<div class="banner">${ic("alert")}The tracker's server is an older version, so review links can't yet ${S.serverVersion < 3 ? "save a step marked not done or a step added for the case, offer \"did it alone\" or show the consultant" : "offer \"did it alone\" or show the consultant"}. Paste the new Code.gs from the launch kit, then Deploy, Manage deployments, Edit, New version, Deploy.</div>`);
   if (S.app && S.syncErr) out.push(`<div class="banner">${ic("alert")}Can't reach the server, so this may not show the latest records and changes can't be saved. It retries on its own.</div>`);
   if (S.mode === "live" && S.canEdit && inTransition()) out.push(`<div class="note">Transition period (${ymLabel(S.settings.launch)} to ${ymLabel(ymAdd(S.settings.launch, RULE.transitionMonths - 1))}): any step within a resident's limit can be completed by two satisfactory performances observed by two different specialists. Set where everyone is now in <button class="linkbtn" data-act="nav" data-v="baseline">Surgical starting levels</button>.</div>`);
   return out.join("");
@@ -2173,7 +2300,7 @@ function fairView() {
   const spec = {};
   allCases().filter(c => caseStatus(c) === "done").forEach(c => {
     const s = (c.specialist || "").trim() || "Not recorded", o = spec[s] || (spec[s] = { asg: 0, given: 0, why: {} });
-    (c.team || []).forEach(m => { if (!present(attOf(m))) return; (m.steps || []).forEach(k => { const r = (c.out || {})[k]; if (!r || !r.who) return; o.asg++; if (r.who === m.rid) o.given++; else if (r.reason) o.why[r.reason] = (o.why[r.reason] || 0) + 1; }); });
+    (c.team || []).forEach(m => { if (!present(attOf(m))) return; (m.steps || []).forEach(k => { const r = (c.out || {})[k]; if (!r || !r.who || r.who === NOT_DONE) return; o.asg++; if (r.who === m.rid) o.given++; else if (r.reason) o.why[r.reason] = (o.why[r.reason] || 0) + 1; }); });
   });
   const specRows = Object.entries(spec).filter(([, o]) => o.asg).sort((a, b) => b[1].asg - a[1].asg);
   return `<div class="head"><div>${htitle("fair")}<p class="muted">Who comes, who covers, and who gets the steps. Cases this month are against each level's monthly minimum.</p></div></div>
@@ -2560,13 +2687,20 @@ function copyModal() {
 function newCase(cat) { return { title: "", cat, ladder: "", steps: [], specialist: "", consultant: "", priv: "", libId: null, mode: 0 }; }
 function applyLib(c, e) { c.libId = e.id; c.cat = e.cat; c.ladder = e.ladder || ""; c.steps = e.steps.slice(); c.priv = e.priv || ""; c.editing = false; }
 const caseMode = c => !(c.title || "").trim() ? 0 : (c.libId && !c.editing) ? 1 : 2;
-function stepPicker(i, c) {
-  const custom = Object.entries(S.settings.customSteps || {});
-  const seen = new Set();
-  const groups = LADDERS.map(p => `<optgroup label="${esc(PROCS[p].name)}">${PROCS[p].steps.filter(k => !seen.has(k) && seen.add(k)).map(k => `<option value="${k}" ${c.steps.includes(k) ? "disabled" : ""}>${esc(stepLabel(k))}</option>`).join("")}</optgroup>`).join("")
-    + EXTRA_STEPS.map(x => `<optgroup label="${esc(x.name)}">${x.steps.filter(k => !seen.has(k) && seen.add(k)).map(k => `<option value="${k}" ${c.steps.includes(k) ? "disabled" : ""}>${esc(stepLabel(k))}</option>`).join("")}</optgroup>`).join("");
-  return `<select id="ce-${i}-add" data-ce="${i}" data-f="add" aria-label="Add a step"><option value="">Add a step…</option>${groups}${custom.length ? `<optgroup label="Program steps">${custom.map(([k, s]) => `<option value="${k}" ${c.steps.includes(k) ? "disabled" : ""}>${esc(s.label)}</option>`).join("")}</optgroup>` : ""}<option value="new">New step…</option></select>`;
+/* Every step, grouped by ladder, then the other built-in steps, then the program's own; "taken" ones are greyed out. */
+function stepOptions(taken) {
+  const custom = Object.entries(S.settings.customSteps || {}), seen = new Set();
+  const opt = (k, label) => `<option value="${k}" ${taken.includes(k) ? "disabled" : ""}>${esc(label || stepLabel(k))}</option>`;
+  return LADDERS.map(p => `<optgroup label="${esc(PROCS[p].name)}">${PROCS[p].steps.filter(k => !seen.has(k) && seen.add(k)).map(k => opt(k)).join("")}</optgroup>`).join("")
+    + EXTRA_STEPS.map(x => `<optgroup label="${esc(x.name)}">${x.steps.filter(k => !seen.has(k) && seen.add(k)).map(k => opt(k)).join("")}</optgroup>`).join("")
+    + (custom.length ? `<optgroup label="Program steps">${custom.map(([k, s]) => opt(k, s.label)).join("")}</optgroup>` : "");
 }
+function stepPicker(i, c) {
+  return `<select id="ce-${i}-add" data-ce="${i}" data-f="add" aria-label="Add a step"><option value="">Add a step…</option>${stepOptions(c.steps)}<option value="new">New step…</option></select>`;
+}
+/* A step added to one case at review. Done again in the same case, it becomes a second place: "sp.screw@2". */
+function addedKey(k, have) { if (!have.includes(k)) return k; let n = 2; while (have.includes(k + "@" + n)) n++; return k + "@" + n; }
+const NOT_DONE = "none"; // out[step].who when the step wasn't done in this case: counts for nobody and uses nobody's turn
 function caseEditor(c, i, opts) {
   opts = opts || {};
   const mode = opts.lib ? 2 : caseMode(c), hit = c.libId ? libById(c.libId) : null;
@@ -2683,6 +2817,7 @@ function openReview(c) {
   d.xids = (d.extra || []).map(x => x.rid);
   d.xfor = Object.fromEntries((d.extra || []).map(x => [x.rid, x.for || ""]));
   d.allSteps = (d.steps && d.steps.length ? orderedSteps(d) : uniq(d.team.flatMap(t => t.steps || []).concat(d.specialistSteps || [])));
+  d.added = (d.added || []).filter(k => d.allSteps.includes(k));
   d.allSteps.forEach(k => { if (!d.out[k]) { const a = assigneeOf(d, k); d.out[k] = { who: a === "spec" ? "spec" : a && present((d.team.find(t => t.rid === a) || {}).att) ? a : "" }; } });
   openModal({ type: "review", id: c.id, draft: d });
 }
@@ -2708,16 +2843,18 @@ function reviewModal() {
       <div class="field"><span>Result, recorded by the backup</span><div class="seg" role="group">${[["learner", "CSF obtained by the learner"], ["backup", "Backup took over, CSF obtained"], ["fail", "No CSF"]].map(([v, l2]) => `<button type="button" class="txt" data-act="rv-lp" data-v="${v}" aria-pressed="${l.result === v}">${l2}</button>`).join("")}</div></div></div>`; })()
       : d.allSteps.length ? d.allSteps.map(k => {
         const o = d.out[k] || {}, asg = assigneeOf(d, k), asgT = d.team.find(t => t.rid === asg), kid = k.replace(/[^a-z0-9]/gi, "-");
-        const needWhy = asgT && present(asgT.att) && o.who && o.who !== asg;
-        return `<div class="steprow"><div><strong>${esc(stepLabel(k))}</strong><div class="small muted">Planned for ${asg === "spec" ? "the specialist" : asg ? esc(nm(asg)) : "nobody"}</div></div>
-          <div class="ctl"><select id="rv-who-${kid}" data-rwho="${k}" aria-label="Who did ${esc(stepLabel(k))}"><option value="">Who did it?</option>${doers.map(id => `<option value="${id}" ${o.who === id ? "selected" : ""}>${esc(nm(id))}</option>`).join("")}<option value="spec" ${o.who === "spec" ? "selected" : ""}>The specialist</option></select></div>
-          ${(o.who && o.who !== "spec") || needWhy ? `<div class="extra">${o.who && o.who !== "spec" ? `<div class="seg" role="group" aria-label="Outcome">${Object.entries(OUTCOMES).map(([v, l]) => `<button type="button" class="txt ${v === "taken" ? "bad" : v === "help" ? "mid" : ""}" title="${{ ind: "Did it alone, the supervisor nearby (level 4)", sat: "Led the step, supervisor helped only when needed (level 3)", help: "Supervisor helped actively (level 2)", taken: "Supervisor took over (level 1)" }[v]}" data-act="rv-o" data-k="${k}" data-v="${v}" aria-pressed="${o.o === v}">${l}</button>`).join("")}</div>` : ""}
+        const needWhy = asgT && present(asgT.att) && o.who && o.who !== asg && o.who !== NOT_DONE, added = d.added.includes(k), res = o.who && o.who !== "spec" && o.who !== NOT_DONE;
+        return `<div class="steprow"><div><strong>${esc(stepLabel(k))}</strong><div class="small muted">${added ? `Added for this case · <button type="button" class="linkbtn" data-act="rv-rm" data-k="${k}">Remove</button>` : `Planned for ${asg === "spec" ? "the specialist" : asg ? esc(nm(asg)) : "nobody"}`}</div></div>
+          <div class="ctl"><select id="rv-who-${kid}" data-rwho="${k}" aria-label="Who did ${esc(stepLabel(k))}"><option value="">Who did it?</option>${doers.map(id => `<option value="${id}" ${o.who === id ? "selected" : ""}>${esc(nm(id))}</option>`).join("")}<option value="spec" ${o.who === "spec" ? "selected" : ""}>The specialist</option><option value="${NOT_DONE}" ${o.who === NOT_DONE ? "selected" : ""}>Not done in this case</option></select></div>
+          ${res || needWhy ? `<div class="extra">${res ? `<div class="seg" role="group" aria-label="Outcome">${Object.entries(OUTCOMES).map(([v, l]) => `<button type="button" class="txt ${v === "taken" ? "bad" : v === "help" ? "mid" : ""}" title="${{ ind: "Did it alone, the supervisor nearby (level 4)", sat: "Led the step, supervisor helped only when needed (level 3)", help: "Supervisor helped actively (level 2)", taken: "Supervisor took over (level 1)" }[v]}" data-act="rv-o" data-k="${k}" data-v="${v}" aria-pressed="${o.o === v}">${l}</button>`).join("")}</div>` : ""}
             ${needWhy ? `<select id="rv-why-${kid}" data-rwhy="${k}" aria-label="Why it was not given"><option value="">Why didn't ${esc(nm(asg))} do it?</option>${Object.entries(NOT_GIVEN).map(([v, l]) => `<option value="${v}" ${o.reason === v ? "selected" : ""}>${l}</option>`).join("")}</select>` : ""}</div>` : ""}</div>`; }).join("")
       : `<p class="small muted">No resident steps on this case.</p>`;
+    const addRow = lp ? "" : `<div class="steprow"><div><strong>Something else was done?</strong><div class="small muted">Add a step done in this case only. It counts like any other step; the case in the library is unchanged.</div></div>
+      <div class="ctl"><select id="rv-add" data-radd="1" aria-label="Add a step done in this case"><option value="">Add a step…</option>${stepOptions([])}</select></div></div>`;
     const chk = surgeonCheck(d);
     body = `<div class="fields"><label class="field"><span>Consultant (surgeon of record)</span><input type="text" list="cons-list" id="rv-cons" data-m="consultant" value="${esc(d.consultant || "")}" dir="auto"></label><label class="field"><span>Supervising specialist</span><input type="text" list="spec-list" id="rv-spec" data-m="specialist" value="${esc(d.specialist || "")}" dir="auto"></label></div>${chk ? `<div class="note ${chk.tone}">${esc(chk.text)}</div>` : ""}
       <div class="stack" style="gap:0"><h3>Who came</h3>${att || `<p class="small muted">Nobody was planned.</p>`}</div>${extras}
-      <div class="stack" style="gap:0"><h3>What was done</h3><p class="small muted" style="margin-bottom:4px">Confirm who actually did each step. Only satisfactory performances count toward a step; a step the specialist kept uses nobody's turn.</p>${steps}</div>
+      <div class="stack" style="gap:0"><h3>What was done</h3><p class="small muted" style="margin-bottom:4px">Confirm who actually did each step. Only satisfactory performances count toward a step; a step the specialist kept, or one not done in this case, uses nobody's turn.</p>${steps}${addRow}</div>
       <label class="field"><span>Note (optional)</span><input type="text" id="rv-note" data-m="note" value="${esc(d.note || "")}"></label>`;
   }
   return `<div class="mhead"><span class="label">${esc(dayLabel(d.date))}${d.time ? " · " + esc(d.time) : ""} · ${d.kind === "elective" ? esc(d.list || "Elective") : "Emergency"}</span><h2>${esc(caseTitle(d))}</h2><div class="row">${catChip(d.cat)}${d.fileNo ? `<span class="small muted mono">File ${esc(d.fileNo)}</span>` : ""}</div></div>
@@ -2733,15 +2870,18 @@ async function saveReview() {
     if (isLP(d)) { if (!(d.lp || {}).result) errs.push("Record the lumbar puncture result"); }
     else {
       if (d.allSteps.some(k => !(d.out[k] || {}).who)) errs.push("Say who did each step");
-      if (d.allSteps.some(k => { const o = d.out[k] || {}; return o.who && o.who !== "spec" && !o.o; })) errs.push("Choose how each resident's step went");
+      if (d.allSteps.some(k => { const o = d.out[k] || {}; return o.who && o.who !== "spec" && o.who !== NOT_DONE && !o.o; })) errs.push("Choose how each resident's step went");
     }
     if (errs.length) { m.err = errs.join(". ") + "."; renderModal(); return; }
   }
   const c = clone(d);
-  ["id", "ym", "newDate", "xids", "xfor", "allSteps", "closed", "perf"].forEach(k => delete c[k]);
+  ["id", "ym", "newDate", "xids", "xfor", "allSteps", "closed", "perf", "added"].forEach(k => delete c[k]);
+  // steps added for this case join its step list; removing one drops it again
+  if (d.added.length || (d.steps && d.steps.length) || (c.added || []).length) c.steps = d.allSteps.slice();
+  if (d.added.length) c.added = d.added.slice();
   c.extra = d.status === "done" ? d.xids.map(rid => ({ rid, for: d.xfor[rid] || null })) : [];
   if (d.status !== "done") { c.out = {}; c.team.forEach(t => { delete t.att; delete t.reason; }); }
-  else { const keep = new Set(doersOf(d).concat(["spec"])); Object.keys(c.out).forEach(k => { if (!d.allSteps.includes(k) || !keep.has(c.out[k].who)) delete c.out[k]; else if (c.out[k].who === "spec") c.out[k] = { who: "spec" }; }); c.team.forEach(t => { if (t.att !== "exc") delete t.reason; }); }
+  else { const keep = new Set(doersOf(d).concat(["spec", NOT_DONE])); Object.keys(c.out).forEach(k => { if (!d.allSteps.includes(k) || !keep.has(c.out[k].who)) delete c.out[k]; else if (c.out[k].who === "spec" || c.out[k].who === NOT_DONE) c.out[k] = { who: c.out[k].who }; }); c.team.forEach(t => { if (t.att !== "exc") delete t.reason; }); }
   c.reviewedAt = new Date().toISOString();
   const map = { [m.id]: c };
   if (d.status === "postponed" && validDate(d.newDate)) {
@@ -3058,6 +3198,7 @@ document.addEventListener("click", async e => {
       if (present(t.att)) Object.keys(d.xfor).forEach(x => { if (d.xfor[x] === t.rid) d.xfor[x] = ""; });
       renderModal(); break;
     }
+    case "rv-rm": { const d = m.draft, k = el.dataset.k; d.allSteps = d.allSteps.filter(x => x !== k); d.added = d.added.filter(x => x !== k); delete d.out[k]; renderModal(); break; }
     case "rv-o": { const o = m.draft.out[el.dataset.k]; o.o = o.o === el.dataset.v ? null : el.dataset.v; renderModal(); break; }
     case "rv-lp": m.draft.lp = Object.assign({}, m.draft.lp, { result: el.dataset.v }); renderModal(); break;
     case "rv-save": saveReview(); break;
@@ -3070,16 +3211,17 @@ document.addEventListener("click", async e => {
       const a = S.sv.ans, r = el.dataset.r; a.att[r].att = el.dataset.v;
       if (el.dataset.v === "exc") a.att[r].reason = a.att[r].reason || "other";
       const present = svPresent(a);
-      Object.values(a.out).forEach(o => { if (o.who && o.who !== "spec" && !present.includes(o.who)) { o.who = ""; o.o = null; } });
+      Object.values(a.out).forEach(o => { if (o.who && o.who !== "spec" && o.who !== NOT_DONE && !present.includes(o.who)) { o.who = ""; o.o = null; } });
       render(); break;
     }
     case "sv-extra": {
       const a = S.sv.ans, r = el.dataset.v; a.extra = a.extra.includes(r) ? a.extra.filter(x => x !== r) : a.extra.concat([r]);
       const present = svPresent(a);
-      Object.values(a.out).forEach(o => { if (o.who && o.who !== "spec" && !present.includes(o.who)) { o.who = ""; o.o = null; } });
+      Object.values(a.out).forEach(o => { if (o.who && o.who !== "spec" && o.who !== NOT_DONE && !present.includes(o.who)) { o.who = ""; o.o = null; } });
       render(); break;
     }
-    case "sv-who": { const o = S.sv.ans.out[el.dataset.k]; if (o.who !== el.dataset.v) { o.who = el.dataset.v; o.o = null; } S.sv.missing = S.sv.missing.filter(x => x !== el.dataset.k || el.dataset.v !== "spec"); render(); break; }
+    case "sv-who": { const o = S.sv.ans.out[el.dataset.k]; if (o.who !== el.dataset.v) { o.who = el.dataset.v; o.o = null; } S.sv.missing = S.sv.missing.filter(x => x !== el.dataset.k || (el.dataset.v !== "spec" && el.dataset.v !== NOT_DONE)); render(); break; }
+    case "sv-rm": { const a = S.sv.ans, k = el.dataset.k; a.added = a.added.filter(x => x !== k); delete a.out[k]; S.sv.missing = S.sv.missing.filter(x => x !== k); render(); break; }
     case "sv-o": { S.sv.ans.out[el.dataset.k].o = el.dataset.v; S.sv.missing = S.sv.missing.filter(x => x !== el.dataset.k); render(); break; }
     case "sv-lp": S.sv.ans.lp = el.dataset.v; S.sv.missing = S.sv.missing.filter(x => x !== "lp"); render(); break;
     case "sv-send": svSend(); break;
@@ -3118,6 +3260,11 @@ function onField(e) {
   }
   if (e.type === "change" && t.dataset.set) { saveSettings({ [t.dataset.set]: t.type === "checkbox" ? t.checked : +t.value }).then(ok => ok && toast("Saved")); return; }
   if (t.id === "sv-name" && S.sv && S.sv.ans) { S.sv.ans.specialist = t.value; return; }
+  if (t.dataset.svadd && S.sv && S.sv.ans) {
+    if (e.type !== "change" || !t.value) return;
+    const v = S.sv, k = addedKey(t.value, svAll(v)); v.ans.added.push(k); v.ans.out[k] = { who: "", o: null };
+    render(); const el = document.querySelectorAll(".survey .qcard h2"); if (el.length) el[el.length - 1].scrollIntoView({ behavior: "smooth", block: "center" }); return;
+  }
   const m = S.modal; if (!m) return;
   const d = m.draft;
   let rerender = false;
@@ -3162,13 +3309,14 @@ function onField(e) {
     if (e.type !== "change") return;
     const set = new Set(d[t.dataset.pick]); t.checked ? set.add(t.value) : set.delete(t.value); d[t.dataset.pick] = [...set];
     if (m.type === "em" && t.dataset.pick === "rids") d.touched = true;
-    if (t.dataset.pick === "xids") { Object.keys(d.xfor).forEach(x => { if (!set.has(x)) delete d.xfor[x]; }); d.allSteps.forEach(k => { if (d.out[k].who && d.out[k].who !== "spec" && !doersOf(d).includes(d.out[k].who)) d.out[k] = { who: "" }; }); }
+    if (t.dataset.pick === "xids") { Object.keys(d.xfor).forEach(x => { if (!set.has(x)) delete d.xfor[x]; }); d.allSteps.forEach(k => { if (d.out[k].who && d.out[k].who !== "spec" && d.out[k].who !== NOT_DONE && !doersOf(d).includes(d.out[k].who)) d.out[k] = { who: "" }; }); }
     rerender = true;
   }
   else if (t.dataset.lc != null) d.cases[+t.dataset.lc][t.dataset.f] = t.value;
   else if (t.dataset.rexc != null) d.team[+t.dataset.rexc].reason = t.value;
   else if (t.dataset.rfor) d.xfor[t.dataset.rfor] = t.value;
-  else if (t.dataset.rwho) { if (e.type !== "change") return; const o = d.out[t.dataset.rwho] = d.out[t.dataset.rwho] || {}; o.who = t.value; if (!t.value || t.value === "spec") o.o = null; o.reason = null; rerender = true; }
+  else if (t.dataset.rwho) { if (e.type !== "change") return; const o = d.out[t.dataset.rwho] = d.out[t.dataset.rwho] || {}; o.who = t.value; if (!t.value || t.value === "spec" || t.value === NOT_DONE) o.o = null; o.reason = null; rerender = true; }
+  else if (t.dataset.radd) { if (e.type !== "change" || !t.value) return; const k = addedKey(t.value, d.allSteps); d.allSteps.push(k); d.added.push(k); d.out[k] = { who: "" }; m.err = ""; rerender = true; }
   else if (t.dataset.rwhy) d.out[t.dataset.rwhy].reason = t.value || null;
   else if (t.dataset.rmap) { if (e.type !== "change") return; if (t.value) d.map[t.dataset.rmap] = t.value; else delete d.map[t.dataset.rmap]; m.err = ""; rerender = true; }
   if (rerender) { renderModal(); return; }
