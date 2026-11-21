@@ -560,6 +560,10 @@ const STEP = {
   "ac.decomp": ["Posterior longitudinal ligament opening and osteophyte removal", 10, 8],
   "ac.cage": ["Cervical cage sizing and insertion", 8, 6],
   "ac.plate": ["Anterior plate and screw fixation", 8, 6],
+  // posterior cervical decompression and lateral mass fixation; screws and laminae recorded per level ("pc.lms@LV1L")
+  "pc.pos": ["Prone positioning in pins, neck neutral", 5, 4],
+  "pc.lms": ["Lateral mass screw placement", 10, 8],
+  "pc.lam": ["Cervical laminectomy", 8, 6],
   // carotid endarterectomy
   "ce.pos": ["Supine positioning with shoulder roll and head rotation", 5, 4],
   "ce.platysma": ["Platysma division and dissection along the sternocleidomastoid", 5, 4],
@@ -611,7 +615,7 @@ const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
 const CASE_LADDERS = ["cranio", "vent", "csdh", "lp", "spine", "tp"];
 const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
 /* Built-in steps outside the ladders, offered in the case editor's step picker. */
-const EXTRA_STEPS = [{ name: "Cervical spine", steps: ["ac.pos", "ac.level", "ac.plane", "ac.longus", "ac.disc", "ac.decomp", "ac.cage", "ac.plate"] }, { name: "Elective spine", steps: ["sp.reduce", "ld.sample", "ld.debride", "ld.hardware", "ld.disc", "ld.wash", "te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base"] }, { name: "Vascular", steps: ["ce.pos", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "ce.drain", "ce.platclose"] }];
+const EXTRA_STEPS = [{ name: "Cervical spine", steps: ["ac.pos", "ac.level", "ac.plane", "ac.longus", "ac.disc", "ac.decomp", "ac.cage", "ac.plate", "pc.pos", "pc.lms", "pc.lam"] }, { name: "Elective spine", steps: ["sp.reduce", "ld.sample", "ld.debride", "ld.hardware", "ld.disc", "ld.wash", "te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base"] }, { name: "Vascular", steps: ["ce.pos", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "ce.drain", "ce.platclose"] }];
 const groupOf = lvl => lvl >= 6 ? "S" : lvl >= 4 ? "M" : lvl >= 1 ? "J" : "A";
 const GROUP_NAME = { J: "Junior", M: "Midsenior", S: "Senior", A: "Attached" };
 const GROUP_PLURAL = { S: "Seniors", M: "Midseniors", J: "Juniors", A: "Attached" };
@@ -657,6 +661,10 @@ const LIB_BUILTIN = [
   { id: "b-lidisc", name: "Lumbar interlaminar discectomy, 1 level", aliases: ["Lumbar microdiscectomy", "Interlaminar fenestration and discectomy", "Lumbar disc prolapse"], cat: "el", ladder: "spine",
     steps: ["sp.closure", "sp.inc", "sp.muscle", "sp.hemo", "sp.lam@FEN", "sp.disc"] },
   { id: "b-lfix25", name: "Lumbar fixation and decompression, L2 to S1", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@L2L", "sp.screw@L2R", "sp.screw@L3L", "sp.screw@L3R", "sp.screw@L4L", "sp.screw@L4R", "sp.screw@L5L", "sp.screw@L5R", "sp.screw@S1L", "sp.screw@S1R", "sp.lam@L2", "sp.lam@L3", "sp.lam@L4", "sp.lam@L5"] },
+  { id: "b-pcf3", name: "Posterior cervical decompression and lateral mass fixation, 3 levels", aliases: ["Posterior cervical laminectomy and fixation, 3 levels", "Cervical lateral mass fixation, 3 levels", "Posterior cervical decompression and fusion, 3 levels"], cat: "el", ladder: "",
+    steps: ["pc.pos", "ac.level", "sp.inc", "sp.muscle@L", "sp.muscle@R", "pc.lms@LV1L", "pc.lms@LV1R", "pc.lms@LV2L", "pc.lms@LV2R", "pc.lms@LV3L", "pc.lms@LV3R", "pc.lam@LV1", "pc.lam@LV2", "pc.lam@LV3", "sp.rod", "sp.hemo", "ce.drain", "sp.closure"] },
+  { id: "b-lfix4s1", name: "Lumbar fixation L4 to S1 with discectomy", aliases: ["L4 L5 S1 TPSF and discectomy", "TPSF L4 to S1 and discectomy", "L4 to S1 fixation and discectomy", "Transpedicular screw fixation L4 to S1 with discectomy"], cat: "el", ladder: "spine",
+    steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@L4L", "sp.screw@L4R", "sp.screw@L5L", "sp.screw@L5R", "sp.screw@S1L", "sp.screw@S1R", "sp.lam@L4", "sp.lam@L5", "sp.disc@L45", "sp.disc@L5S1"] },
   { id: "b-lfix1c", name: "Lumbar fixation with cage and reduction, 1 level", cat: "el", ladder: "spine", steps: ["sp.closure", "sp.inc", "sp.muscle@L", "sp.muscle@R", "sp.hemo", "sp.rod", "sp.screw@UL", "sp.screw@UR", "sp.screw@LL", "sp.screw@LR", "sp.lam", "sp.disc", "sp.cage", "sp.reduce"] },
   // the back and abdominal incisions are separate places, so two residents open at the same time
   { id: "b-tp", name: "Theco-peritoneal shunt", cat: "el", ladder: "tp", steps: ["sp.closure", "tp.inc@BACK", "tp.inc@ABD", "ab.exp", "tp.thecal", "tp.passer"] },
@@ -796,7 +804,9 @@ const catChip = id => `<span class="chip tone tone-${catTone(id)}">${esc(catOf(i
 /* A step can be done in several places in one case: "sp.muscle@L" is the left side of muscle separation,
    "sp.screw@UL" the upper left screw. Each place is assigned and recorded on its own and counts toward the step's one counter. */
 const PLACE = { L: "left", R: "right", UL: "upper left", UR: "upper right", LL: "lower left", LR: "lower right",
-  FEN: "interlaminar fenestration", BACK: "back", ABD: "abdomen", LV1: "first level", LV2: "second level", LV3: "third level" }; // "sp.lam@FEN": flavectomy and partial laminotomy, counted toward laminectomy
+  FEN: "interlaminar fenestration", BACK: "back", ABD: "abdomen", LV1: "first level", LV2: "second level", LV3: "third level",
+  LV1L: "first level left", LV1R: "first level right", LV2L: "second level left", LV2R: "second level right", LV3L: "third level left", LV3R: "third level right",
+  L45: "L4–L5", L5S1: "L5–S1" }; // "sp.lam@FEN": flavectomy and partial laminotomy, counted toward laminectomy
 // levels: "L2" is the L2 lamina, "L2L" the left L2 screw
 const placeName = p => PLACE[p] || (/^\d+$/.test(p) ? "again, " + p : String(p)).replace(/^([CTLS]\d{1,2})(L|R)$/, (_, lv, sd) => `${lv} ${PLACE[sd]}`);
 const baseKey = k => String(k || "").split("@")[0];
@@ -808,6 +818,8 @@ const PLACE_SHARE = {
   "sp.muscle": { next: ["J", "S", "M"] },        // the other side: a junior already allowed the step, else the senior
   "sp.screw": { lead: "S", next: ["M"] },       // the senior places most screws, the midsenior the rest when allowed
   "sp.lam": { next: [] },
+  "pc.lms": { lead: "S", next: ["M"] },         // lateral mass screws: like pedicle screws, the senior most, the midsenior the rest when allowed
+  "pc.lam": { next: [] },
   "tp.inc": { follow: { ABD: "ab.exp" } },          // follow: the abdominal incision goes with the peritoneal exposure, the back one to the other resident                          // multilevel laminectomy: whoever the ladder gives it takes most levels, the specialist the rest
 };
 const placeMajority = n => n <= 2 ? 1 : Math.floor(n / 2) + 1;
@@ -947,7 +959,7 @@ const KIND_STEPS = {
 const privSteps = p => uniq((KIND_STEPS[p.kind] || KIND_STEPS.none)(p.crit).filter(Boolean));
 /* Every procedure on the list is in the case library; the ladder procedures already there take theirs. */
 {
-  const ladderPriv = { "b-cranio": "edh", "b-vent": "vps", "b-csdh": "csdh", "b-lp": "lp", "b-spine": "plif", "b-lfix1": "plif", "b-lfix1c": "plif", "b-lfix25": "plif", "b-tp": "vps", "b-psm": "psm", "b-pft": "pfcrani",
+  const ladderPriv = { "b-cranio": "edh", "b-vent": "vps", "b-csdh": "csdh", "b-lp": "lp", "b-spine": "plif", "b-lfix1": "plif", "b-lfix1c": "plif", "b-lfix25": "plif", "b-lfix4s1": "plif", "b-pcf3": "postcerv", "b-tp": "vps", "b-psm": "psm", "b-pft": "pfcrani",
     "b-ogm": "sbmen", "b-acdf2": "acdf", "b-cea": "cea", "b-ldeb": "sea", "b-tfed": "mis", "b-lfen": "lami", "b-lidisc": "microdisc" };
   // the pneumocephalus repair and the pterional approach aren't on the list: they take the Advanced default
   LIB_BUILTIN.forEach(b => { if (ladderPriv[b.id]) b.priv = ladderPriv[b.id]; });
@@ -972,6 +984,7 @@ const STEP_TYPE = {
   "ce.pos": "pos", "ce.platysma": "expose", "ce.sheath": "expose", "ce.expose": "crit", "ce.clamp": "crit", "ce.arteriotomy": "crit", "ce.shunt": "crit", "ce.plaque": "crit", "ce.repair": "crit", "ce.unclamp": "crit", "ce.drain": "close", "ce.platclose": "close",
   "ld.sample": "expose", "ld.debride": "crit", "ld.hardware": "crit", "ld.disc": "crit", "ld.wash": "close",
   "te.pos": "pos", "te.needle": "crit", "te.dilate": "bone", "te.foramen": "bone", "te.disc": "crit", "te.hemo": "hemo", "te.close": "close",
+  "pc.pos": "pos", "pc.lms": "crit", "pc.lam": "crit",
   "pt.fascia": "expose", "pt.temporalis": "expose", "pt.crani": "bone", "pt.sphenoid": "bone", "pt.duraopen": "dura", "pt.sylvian": "crit", "pt.lesion": "crit", "pt.layers": "close",
 };
 const STEP_TYPE_NAME = { pos: "Positioning", expose: "Incision and exposure", burr: "Burr holes", bone: "Bone opening", dura: "Dural opening", hemo: "Hemostasis and dural closure", close: "Closure", crit: "Critical step" };
@@ -1481,8 +1494,11 @@ function splitSteps(seq, caseSteps, members, priv) {
   const sp = shareSteps(caseSteps, members, priv, seq);
   return sharePlaces(seq, caseSteps, sp.team, sp.specialistSteps, priv);
 }
-/* A case without a ladder: shared by how hard each step is. */
-function planByStep(c, members, priv) { return shareSteps(orderedSteps(c), members, priv, null); }
+/* A case without a ladder: shared by how hard each step is, then places of one step split between residents. */
+function planByStep(c, members, priv) {
+  const steps = orderedSteps(c), sp = shareSteps(steps, members, priv, null);
+  return sharePlaces(null, steps, sp.team, sp.specialistSteps, priv);
+}
 /* Splits each step done in several places so no resident takes all of them (see PLACE_SHARE). */
 function sharePlaces(seq, caseSteps, team, specialistSteps, priv) {
   const groups = {};
@@ -1491,7 +1507,9 @@ function sharePlaces(seq, caseSteps, team, specialistSteps, priv) {
   Object.entries(groups).forEach(([b, places]) => {
     if (places.length < 2) return;
     const rule = PLACE_SHARE[b] || {}, next = rule.next || ["J", "M", "S"];
-    const can = m => surg(S.residents[m.id]).allowed(seq, places[0], priv);
+    // on a ladder, only a resident who has reached this step on it; without one, the case's own order stands in for it
+    const reached = m => { if (!seq) return true; const L = surg(S.residents[m.id]).learning(seq); return !L || seq.indexOf(b) <= seq.indexOf(baseKey(L)); };
+    const can = m => surg(S.residents[m.id]).allowed(seq || caseSteps, places[0], priv) && reached(m);
     const cap = m => surg(S.residents[m.id]).within(priv, places[0]) ? places.length : 1; // a stretch is one place
     const lead = (rule.lead && team.find(m => m.g === rule.lead && can(m))) || team.find(m => m.steps.includes(places[0])) || null;
     const second = team.filter(m => m !== lead && next.includes(m.g) && can(m)).sort((x, y) => next.indexOf(x.g) - next.indexOf(y.g))[0] || null;
