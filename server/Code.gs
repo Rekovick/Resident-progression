@@ -28,8 +28,8 @@ const HEAD = ['path', 'rev', 'updatedAt', 'updatedBy', 'chunks'];
 const CHUNK = 45000;
 const COLLECTIONS = ['residents', 'cases', 'rota', 'library', 'settings'];
 const ROLES = ['owner', 'trainer', 'resident'];
-/** Bumped when the app needs to know what this server supports (2 = case review links, 3 = steps not done or added at review, 4 = the consultant and the "did it alone" rating on review links). */
-const SERVER_VERSION = 4;
+/** Bumped when the app needs to know what this server supports (2 = case review links, 3 = steps not done or added at review, 4 = the consultant and the "did it alone" rating on review links, 5 = steps the consultant did). */
+const SERVER_VERSION = 5;
 const CASE_LINK_DAYS = 14;
 const ATTENDANCE = ['on', 'late', 'exc', 'unx'];
 const OUTCOMES = ['ind', 'sat', 'help', 'taken'];
@@ -254,7 +254,7 @@ function caseSurvey_(link) {
     if (parts[0] === 'residents' && d) names[parts[1]] = { name: d.name || '', level: d.baseline ? Number(d.baseline.level) || 0 : 0 };
   });
   const settings = (docs['settings/program'] || {}).data || {};
-  const keep = ['title', 'date', 'time', 'kind', 'list', 'cat', 'ladder', 'steps', 'added', 'specialist', 'consultant', 'priv', 'specialistSteps', 'status', 'lp', 'out', 'extra', 'reviewedAt', 'reviewedBy'];
+  const keep = ['title', 'date', 'time', 'kind', 'list', 'cat', 'ladder', 'steps', 'added', 'specialist', 'consultant', 'priv', 'specialistSteps', 'consultantSteps', 'status', 'lp', 'out', 'extra', 'reviewedAt', 'reviewedBy'];
   const out = {};
   keep.forEach(k => { if (c[k] !== undefined) out[k] = c[k]; });
   out.team = (c.team || []).map(m => ({ rid: m.rid, role: m.role, steps: m.steps || [], att: m.att || '', reason: m.reason || '' }));
@@ -264,7 +264,7 @@ function caseSurvey_(link) {
 /**
  * Records the specialist's answers on the case:
  * {status: done|postponed|cancelled, specialist, att: {rid: {att, reason}}, extra: [rid], out: {step: {who, o}}, added: [step], lp}
- * who is a resident, 'spec', or 'none' for a step not done in this case; added are steps done in this case only.
+ * who is a resident, 'spec' (the specialist), 'cons' (the consultant), or 'none' for a step not done in this case; added are steps done in this case only.
  */
 function submitSurvey_(link, ans) {
   if (!isObject_(ans)) throw new Error('Nothing to record.');
@@ -304,7 +304,7 @@ function submitSurvey_(link, ans) {
     team.forEach(m => { if (m.att === 'on' || m.att === 'late') present[m.rid] = true; });
     extras.forEach(x => { present[x] = true; });
     const prevAdded = Array.isArray(c.added) ? c.added : [];
-    const base = ((c.steps && c.steps.length) ? c.steps : [].concat.apply([], team.map(m => m.steps || [])).concat(c.specialistSteps || [])).filter(k => prevAdded.indexOf(k) < 0);
+    const base = ((c.steps && c.steps.length) ? c.steps : [].concat.apply([], team.map(m => m.steps || [])).concat(c.specialistSteps || [], c.consultantSteps || [])).filter(k => prevAdded.indexOf(k) < 0);
     const added = !Array.isArray(ans.added) ? prevAdded : ans.added.map(String).filter((k, i, a) => /^[A-Za-z0-9_.-]{1,40}(@[A-Za-z0-9]{1,8})?$/.test(k) && base.indexOf(k) < 0 && a.indexOf(k) === i).slice(0, 20);
     const steps = base.concat(added);
     if (added.length || prevAdded.length) { c.steps = steps; if (added.length) c.added = added; else delete c.added; }
@@ -313,7 +313,7 @@ function submitSurvey_(link, ans) {
     steps.forEach(k => {
       const g = isObject_(given[k]) ? given[k] : null;
       if (!g) return;
-      if (g.who === 'spec' || g.who === 'none') out[k] = { who: g.who };
+      if (g.who === 'spec' || g.who === 'cons' || g.who === 'none') out[k] = { who: g.who };
       else if (present[g.who] && OUTCOMES.indexOf(g.o) >= 0) out[k] = { who: g.who, o: g.o };
     });
     c.out = out;
@@ -349,7 +349,7 @@ function filterFor_(person, path, data) {
       (copy.team || []).forEach(m => { if (m.rid !== person.rid) { delete m.att; delete m.reason; delete m.why; delete m.attended; } });
       Object.keys(copy.out || {}).forEach(k => {
         const o = copy.out[k];
-        if (o && o.who && o.who !== 'spec' && o.who !== person.rid) copy.out[k] = { who: o.who };
+        if (o && o.who && o.who !== 'spec' && o.who !== 'cons' && o.who !== person.rid) copy.out[k] = { who: o.who };
       });
       (copy.extra || []).forEach(x => { if (x.rid !== person.rid) delete x.for; });
       delete copy.perf;
