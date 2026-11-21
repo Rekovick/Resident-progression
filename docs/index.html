@@ -830,7 +830,8 @@ const PLACE_SHARE = {
   "sp.screw": { lead: "S", next: ["M"] },       // the senior places most screws, the midsenior the rest when allowed
   "sp.lam": { next: [] },
   "pc.muscle": { sides: ["M", "S"] },             // cervical lateral mass exposure: one side the midsenior, the other the senior
-  "pc.lms": { lead: "S", next: ["M"] },         // lateral mass screws: like pedicle screws, the senior most, the midsenior the rest when allowed
+  // lateral mass screws are advanced: the senior places one level (2 screws), the specialist the rest (leadN: the lead's count; rest: who takes the others)
+  "pc.lms": { lead: "S", leadN: 2, next: [], rest: "spec" },
   "pc.lam": { next: [] },
   "tp.inc": { follow: { ABD: "ab.exp" } },          // follow: the abdominal incision goes with the peritoneal exposure, the back one to the other resident                          // multilevel laminectomy: whoever the ladder gives it takes most levels, the specialist the rest
 };
@@ -1526,13 +1527,16 @@ function specialistAllowed(priv, k) {
   return t !== "crit" && (L >= 2 || ASSIST_TYPES.includes(t));
 }
 function splitSurgeons(steps, priv) {
-  const col = priv.cat >= 3 ? 1 : 0, cons = [], spec = [];
+  const col = priv.cat >= 3 ? 1 : 0, cons = [];
+  // places a rule sends to the specialist (the lateral mass screws the senior doesn't place) go there first
+  const spec = steps.filter(k => placeOf(k) && (PLACE_SHARE[baseKey(k)] || {}).rest === "spec" && specialistAllowed(priv, k));
+  steps = steps.filter(k => !spec.includes(k));
   const hard = k => { const t = stepType(k); return [STEP_MIN[t][col], TYPE_RANK[t], stepDef(baseKey(k)).n, steps.indexOf(k)]; };
   const cmp = (x, y) => { for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; };
   const share = Math.ceil(steps.length / 2);
   steps.filter(k => !specialistAllowed(priv, k)).forEach(k => cons.push(k));
   steps.filter(k => specialistAllowed(priv, k)).sort((x, y) => cmp(hard(y), hard(x))).forEach(k => (cons.length < share ? cons : spec).push(k));
-  const order = k => steps.indexOf(k);
+  const all = steps.concat(spec), order = k => all.indexOf(k);
   return { specialistSteps: spec.sort((x, y) => order(x) - order(y)), consultantSteps: cons.sort((x, y) => order(x) - order(y)) };
 }
 const withSurgeons = (plan, priv) => Object.assign({}, plan, splitSurgeons(plan.specialistSteps || [], priv));
@@ -1566,7 +1570,7 @@ function sharePlaces(seq, caseSteps, team, specialistSteps, priv) {
     }
     team.forEach(m => { m.steps = m.steps.filter(k => baseKey(k) !== b); });
     spec = spec.filter(k => baseKey(k) !== b);
-    const leadN = placeMajority(places.length), took = new Map();
+    const leadN = rule.leadN || placeMajority(places.length), took = new Map();
     places.forEach((k, i) => {
       const to = i < leadN ? lead : second;
       if (to && (took.get(to) || 0) < cap(to)) { to.steps.push(k); took.set(to, (took.get(to) || 0) + 1); } else spec.push(k);
