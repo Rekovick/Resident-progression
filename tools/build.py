@@ -4,11 +4,17 @@
   docs/index.html   the installable app (GitHub Pages): APP_BUILD = true, a full HTML document
   <test-copy path>  the claude.ai test copy: TEST_COPY = true and its own title (optional argument)
 
-Usage: python3 tools/build.py [path/for/test-copy.html]
+Usage: python3 tools/build.py [--no-app] [path/for/test-copy.html]
+
+docs/index.html is what the installed app runs, so it is rebuilt only for a release.
+Changes go to the test copy first: --no-app builds the test copy alone.
 """
 import pathlib, sys
 
 root = pathlib.Path(__file__).resolve().parent.parent
+args = sys.argv[1:]
+build_app = "--no-app" not in args
+args = [a for a in args if a != "--no-app"]
 src = (root / "index.html").read_text()
 
 def swap(text, old, new):
@@ -32,13 +38,14 @@ HEAD = """<!doctype html>
 <style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 """
 
-app = swap(src, "const APP_BUILD = false;", "const APP_BUILD = true;")
-app = swap(app, '<div id="app"></div>', '</head>\n<body>\n<div id="app"></div>')
-(root / "docs" / "index.html").write_text(HEAD + app.rstrip() + "\n</body>\n</html>\n")
-print("built docs/index.html")
+if build_app:
+    app = swap(src, "const APP_BUILD = false;", "const APP_BUILD = true;")
+    app = swap(app, '<div id="app"></div>', '</head>\n<body>\n<div id="app"></div>')
+    (root / "docs" / "index.html").write_text(HEAD + app.rstrip() + "\n</body>\n</html>\n")
+    print("built docs/index.html")
 
-if len(sys.argv) > 1:
+if args:
     test = swap(src, "<title>Neurosurgery Residency Tracker</title>", "<title>Residency Tracker Test Copy</title>")
     test = swap(test, "const TEST_COPY = false;", "const TEST_COPY = true;")
-    pathlib.Path(sys.argv[1]).write_text(test)
-    print("built", sys.argv[1])
+    pathlib.Path(args[0]).write_text(test)
+    print("built", args[0])

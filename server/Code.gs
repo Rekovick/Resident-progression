@@ -29,10 +29,10 @@ const CHUNK = 45000;
 const COLLECTIONS = ['residents', 'cases', 'rota', 'library', 'settings'];
 const ROLES = ['owner', 'trainer', 'resident'];
 /** Bumped when the app needs to know what this server supports (2 = case review links). */
-const SERVER_VERSION = 2;
+const SERVER_VERSION = 3;
 const CASE_LINK_DAYS = 14;
 const ATTENDANCE = ['on', 'late', 'exc', 'unx'];
-const OUTCOMES = ['sat', 'help', 'taken'];
+const OUTCOMES = ['ind', 'sat', 'help', 'taken'];
 const LP_RESULTS = ['learner', 'backup', 'fail'];
 
 // ---------------------------------------------------------------------------
@@ -254,11 +254,11 @@ function caseSurvey_(link) {
     if (parts[0] === 'residents' && d) names[parts[1]] = { name: d.name || '', level: d.baseline ? Number(d.baseline.level) || 0 : 0 };
   });
   const settings = (docs['settings/program'] || {}).data || {};
-  const keep = ['title', 'date', 'time', 'kind', 'list', 'cat', 'ladder', 'steps', 'specialist', 'specialistSteps', 'status', 'lp', 'out', 'extra', 'reviewedAt', 'reviewedBy'];
+  const keep = ['title', 'date', 'time', 'kind', 'list', 'cat', 'ladder', 'steps', 'specialist', 'consultant', 'priv', 'specialistSteps', 'status', 'lp', 'out', 'extra', 'reviewedAt', 'reviewedBy'];
   const out = {};
   keep.forEach(k => { if (c[k] !== undefined) out[k] = c[k]; });
   out.team = (c.team || []).map(m => ({ rid: m.rid, role: m.role, steps: m.steps || [], att: m.att || '', reason: m.reason || '' }));
-  return { case: out, names: names, customSteps: settings.customSteps || {}, specialists: settings.specialists || [] };
+  return { case: out, names: names, customSteps: settings.customSteps || {}, specialists: settings.specialists || [], serverVersion: SERVER_VERSION };
 }
 
 /**

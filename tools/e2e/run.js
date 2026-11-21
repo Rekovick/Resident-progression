@@ -62,12 +62,13 @@ const BASE = "http://localhost:8123/Resident-progression/";
   assert(await tr.evaluate(() => S.canEdit && S.me.role === "trainer"), "trainer can edit");
   const oldServer = await tr.evaluate(async () => { try { await call("noSuchAction"); return "no error"; } catch (e) { return dbErr(e); } });
   assert(/older version/.test(oldServer), "an action the server doesn't know says the server needs updating");
-  assert(await tr.evaluate(() => S.serverVersion === 2 && !document.body.innerText.includes("older version")), "no update warning on a current server");
+  assert(await tr.evaluate(() => S.serverVersion === 3 && !document.body.innerText.includes("older version")), "no update warning on a current server");
   await tr.evaluate(async () => {
     const date = "2026-11-01", c = newCase("em"); applyLib(c, libFind("trauma craniotomy")); c.title = "Trauma craniotomy";
     const rids = rotaDay(date).filter(id => run(S.residents[id]).level >= 1);
-    const plan = planEmergency(c, rids, "2026-11");
-    await saveCases({ c1: caseFromPlan({ date, time: "21:30", kind: "emergency", title: c.title, lib: c.libId, cat: "em", ladder: "cranio", steps: orderedSteps(c), specialist: "د.عبد الرحمن صالح" }, plan) });
+    const plan = planEmergency(c, rids, "2026-11", privOfCase(c));
+    window.__plan1 = { plan, priv: privOfCase(c).key };
+    await saveCases({ c1: caseFromPlan({ date, time: "21:30", kind: "emergency", title: c.title, lib: c.libId, cat: "em", ladder: "cranio", steps: orderedSteps(c), specialist: "د.عبد الرحمن صالح", consultant: "د.علاء احمد", priv: privOfCase(c).key }, plan) });
     openReview(allCases().find(x => x.id === "c1"));
     const d = S.modal.draft, jr = d.team.find(t => t.rid === "ahmed-saleh");
     jr.att = "unx"; d.allSteps.forEach(k => { if (d.out[k].who === "ahmed-saleh") d.out[k] = { who: "" }; });
@@ -76,6 +77,23 @@ const BASE = "http://localhost:8123/Resident-progression/";
     await saveReview();
   });
   assert(await tr.evaluate(() => caseStatus(allCases().find(x => x.id === "c1")) === "done"), "trainer saved the review to the server");
+  const lim = await tr.evaluate(() => {
+    const { plan, priv } = window.__plan1, p = PRIV_BY[priv], bad = [], wide = [];
+    plan.team.forEach(t => { const r = S.residents[t.id], st = surg(r); (t.steps || []).forEach(k => { if (!(t.stretch || []).includes(k) && !withinLimit(p, k, st.grade, st.E.level)) bad.push(t.id + ":" + k); }); if ((t.stretch || []).length > 1) wide.push(t.id); });
+    return { bad, wide, priv };
+  });
+  assert(lim.priv === "edh" && !lim.bad.length, "every assigned step is within the privilege limit or marked stretch " + lim.bad.join(", "));
+  assert(!lim.wide.length, "at most one stretch step per resident on a case");
+  const r1 = await tr.evaluate(() => {
+    const id = Object.keys(S.residents).find(x => gradeOf(S.residents[x]) === 1);
+    if (!id) return "none";
+    const p = PRIV_BY.edh;
+    return withinLimit(p, "em.burr", 1, 3) && withinLimit(p, "em.closure", 1, 3) && !withinLimit(p, "cr.path", 1, 3) ? "ok" : "wrong";
+  });
+  assert(r1 !== "wrong", "R1 may do burr holes and closure, not the critical step");
+  assert(gas.api(ownerKey, "exportDocs")["cases/2026-11"].items.c1.consultant === "د.علاء احمد", "the server keeps the case's consultant");
+  const auto = await tr.evaluate(() => { const d = { case: newCase("em"), date: "2026-11-02", time: "10:00", specialist: "", consultant: "" }; emSurgeons(d); const a = [d.consultant, d.specialist]; d.consultant = "د.محمود كمال"; d.date = "2026-11-01"; emSurgeons(d); return a.concat([d.consultant, d.specialist]); });
+  assert(auto[0] === "د.سلامة قريطم" && auto[1] === "د.احمد العشرى" && auto[2] === "د.محمود كمال" && auto[3] === "د.عبد الرحمن صالح", "emergency cases take the on-call consultant and specialist from the rota, keeping one changed by hand " + auto.join(" / "));
   const stored = gas.api(ownerKey, "exportDocs")["cases/2026-11"];
   assert(stored && stored.items.c1.team.find(t => t.rid === "ahmed-saleh").att === "unx", "server keeps the no-show");
 
@@ -83,7 +101,7 @@ const BASE = "http://localhost:8123/Resident-progression/";
   const linkUrl = await tr.evaluate(async () => {
     const date = "2026-11-02", c = newCase("em"); applyLib(c, libFind("chronic subdural hematoma")); c.title = "Chronic subdural hematoma";
     const rids = rotaDay(date).filter(id => run(S.residents[id]).level >= 1);
-    await saveCases({ c2: caseFromPlan({ date, time: "10:00", kind: "emergency", title: c.title, lib: c.libId, cat: "em", ladder: "csdh", steps: orderedSteps(c), specialist: "د.احمد العشرى" }, planEmergency(c, rids, "2026-11")) });
+    await saveCases({ c2: caseFromPlan({ date, time: "10:00", kind: "emergency", title: c.title, lib: c.libId, cat: "em", ladder: "csdh", steps: orderedSteps(c), specialist: "د.احمد العشرى", consultant: "د.سلامة قريطم" }, planEmergency(c, rids, "2026-11")) });
     await sendReviewLink(allCases().find(x => x.id === "c2"));
     return S.modal && S.modal.type === "qr" ? S.modal.draft.url : null;
   });
@@ -98,10 +116,12 @@ const BASE = "http://localhost:8123/Resident-progression/";
   const plan2 = await sv.evaluate(() => ({ team: S.sv.info.case.team.map(t => ({ rid: t.rid, steps: t.steps })), steps: svSteps(S.sv.info.case) }));
   const noShow = plan2.team.find(t => t.steps.includes("em.closure")).rid;
   await sv.click(`[data-act="sv-att"][data-r="${noShow}"][data-v="unx"]`);
+  assert(await sv.evaluate(() => document.body.innerText.includes("Surgeon of record: د.سلامة قريطم")), "the review link names the consultant");
+  let alone = 0;
   for (const k of plan2.steps) {
     await sv.locator(`[data-act="sv-who"][data-k="${k}"]`).first().click();
-    const good = sv.locator(`[data-act="sv-o"][data-k="${k}"][data-v="sat"]`);
-    if (await good.count()) await good.click();
+    const good = sv.locator(`[data-act="sv-o"][data-k="${k}"][data-v="${alone ? "sat" : "ind"}"]`);
+    if (await good.count()) { await good.click(); alone++; }
   }
   await sv.fill("#sv-name", "د.احمد العشرى");
   await sv.click('[data-act="sv-send"]');
@@ -110,7 +130,8 @@ const BASE = "http://localhost:8123/Resident-progression/";
   const c2 = gas.api(ownerKey, "exportDocs")["cases/2026-11"].items.c2;
   assert(c2.status === "done" && c2.reviewedVia === "link" && c2.reviewedBy === "د.احمد العشرى", "the review link records the case as reviewed by the specialist");
   assert(c2.team.find(t => t.rid === noShow).att === "unx", "the no-show tapped on the link is recorded");
-  assert(Object.keys(c2.out).length === plan2.steps.length && Object.values(c2.out).every(o => o.who === "spec" || o.o === "sat"), "every step has who did it and how it went");
+  assert(Object.keys(c2.out).length === plan2.steps.length && Object.values(c2.out).every(o => o.who === "spec" || o.o === "sat" || o.o === "ind"), "every step has who did it and how it went");
+  assert(!alone || Object.values(c2.out).some(o => o.o === "ind"), "the server takes the \"did it alone\" rating");
   assert(await sv.evaluate(() => { try { return !localStorage.getItem("residency-tracker-connections"); } catch (e) { return true; } }), "the review link saves nothing on the specialist's phone");
   assert(JSON.parse(gas.post(JSON.stringify({ t: token, fn: "bootstrap" }))).ok === false, "a review link can't read the rest of the tracker");
   assert(JSON.parse(gas.post(JSON.stringify({ t: "0".repeat(32), fn: "caseSurvey" }))).error === "LINK_EXPIRED", "a made-up review link is refused");
