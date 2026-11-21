@@ -99,6 +99,18 @@ const BASE = "http://localhost:8123/Resident-progression/";
     plans.forEach((plan, i) => { const p = privOfCase(cases[i]); plan.team.forEach(t => { const st = surg(S.residents[t.id]); (t.steps || []).forEach(k => { if (!(t.stretch || []).includes(k) && !withinLimit(p, k, st.grade, st.E.level)) bad.push(cases[i].title + " " + t.id + ":" + k); }); if (new Set((t.stretch || []).map(baseKey)).size > 1 || (t.stretch || []).length > 1) wide.push(t.id); }); });
     return { bad, wide, privs: cases.map(c => privOfCase(c).key), sizes: plans.map(p => p.team.length) };
   });
+  const curve = await tr.evaluate(() => {
+    const mk = id => { const c = newCase("el"); applyLib(c, libById(id)); c.title = libById(id).name; return c; };
+    const cases = [mk("b-tfed"), mk("b-acdf2"), mk("b-cea"), mk("b-ogm")], out = [];
+    planList(cases, [], "2026-11").forEach((plan, i) => {
+      const p = privOfCase(cases[i]), team = plan.team, ok = (m, k) => { const st = surg(S.residents[m.id]); return withinLimit(p, k, st.grade, st.E.level); };
+      const all = orderedSteps(cases[i]), share = Math.ceil(all.filter(k => team.some(m => ok(m, k))).length / team.length);
+      team.forEach(m => { const shared = (m.steps || []).filter(k => team.some(o => o !== m && ok(o, k))); if (shared.length > share) out.push(cases[i].title + ": " + m.id + " has " + shared.length + " steps others could do (fair share " + share + ")"); });
+    });
+    return out;
+  });
+  assert(!curve.length, "no resident takes more than a fair share of the steps a teammate could do " + curve.join("; "));
+  assert(await tr.evaluate(() => gradeOf(S.residents["ahmed-rehan"]) === 4 && gradeOf(S.residents["ahmed-saleh"]) === 1), "a Senior (Rehan) counts as R4; an R1 stays R1");
   assert(list.privs.join() === "plif,mis,acdf", "library cases from the other session carry their privilege list procedure " + list.privs.join());
   assert(!list.bad.length && !list.wide.length, "an elective list (L2–S1 fixation, TFED, two-level ACDF) keeps every step within limits, one stretch at most " + list.bad.concat(list.wide).join(", "));
   const auto = await tr.evaluate(() => { const d = { case: newCase("em"), date: "2026-11-02", time: "10:00", specialist: "", consultant: "" }; emSurgeons(d); const a = [d.consultant, d.specialist]; d.consultant = "د.محمود كمال"; d.date = "2026-11-01"; emSurgeons(d); return a.concat([d.consultant, d.specialist]); });
