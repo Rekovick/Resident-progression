@@ -567,7 +567,7 @@ const STEP = {
   "cy.osteo": ["Frontal wedge or barrel-stave osteotomies", 5, 4],
   // posterior cervical decompression and lateral mass fixation; screws and laminae recorded per level ("pc.lms@LV1L")
   "pc.pos": ["Prone positioning in pins, neck neutral", 5, 4],
-  "pc.muscle": ["Cervical paraspinal dissection to the lateral masses", 5, 4],
+  "pc.muscle": ["Lateral mass exposure", 5, 4],
   "pc.lms": ["Lateral mass screw placement", 10, 8],
   "pc.lam": ["Cervical laminectomy", 8, 6],
   // carotid endarterectomy
@@ -829,13 +829,18 @@ const PLACE_SHARE = {
   "sp.muscle": { byGrade: true },
   "sp.screw": { lead: "S", next: ["M"] },       // the senior places most screws, the midsenior the rest when allowed
   "sp.lam": { next: [] },
-  "pc.muscle": { byGrade: true },                 // the same on the cervical spine, where an R1 never takes a side (STEP_GRADE_MIN)
+  "pc.muscle": { sides: ["M", "S"] },             // cervical lateral mass exposure: one side the midsenior, the other the senior
   "pc.lms": { lead: "S", next: ["M"] },         // lateral mass screws: like pedicle screws, the senior most, the midsenior the rest when allowed
   "pc.lam": { next: [] },
   "tp.inc": { follow: { ABD: "ab.exp" } },          // follow: the abdominal incision goes with the peritoneal exposure, the back one to the other resident                          // multilevel laminectomy: whoever the ladder gives it takes most levels, the specialist the rest
 };
 /* Who takes the two sides of a step that goes by grade (PLACE_SHARE byGrade), best first: R2–R3 (the more senior first),
    then an R1 who may take it, the R4–R5 last. reachOK says whether an R1 has reached the step. */
+/* Who takes the two sides of a step whose sides go to set people: byGrade (above) or sides, one duty group per side. */
+function sideTakers(rule, team, k, priv, path, reachOK) {
+  if (rule.byGrade) return gradeSides(team, k, priv, path, reachOK);
+  return rule.sides.map(g => team.find(m => m.g === g && surg(S.residents[m.id]).allowed(path, k, priv) && reachOK(m)) || null);
+}
 function gradeSides(team, k, priv, path, reachOK) {
   const gr = m => surg(S.residents[m.id]).grade, rank = m => gr(m) >= 2 && gr(m) <= 3 ? 0 : gr(m) === 1 ? 1 : 2;
   return team.filter(m => surg(S.residents[m.id]).allowed(path, k, priv) && (gr(m) >= 2 || reachOK(m))).sort((x, y) => rank(x) - rank(y) || gr(y) - gr(x));
@@ -1464,9 +1469,9 @@ function shareSteps(caseSteps, members, priv, seq, opts) {
   // 0. the sides of a step that goes by grade (muscle separation), before anything else so the fair share counts them;
   //    sharePlaces settles them the same way, and sends a side nobody here may take to the surgeons
   const sides = {};
-  caseSteps.forEach(k => { if (placeOf(k) && (PLACE_SHARE[baseKey(k)] || {}).byGrade) (sides[baseKey(k)] = sides[baseKey(k)] || []).push(k); });
+  caseSteps.forEach(k => { const r = PLACE_SHARE[baseKey(k)] || {}; if (placeOf(k) && (r.byGrade || r.sides)) (sides[baseKey(k)] = sides[baseKey(k)] || []).push(k); });
   Object.values(sides).filter(pl => pl.length >= 2).forEach(pl => {
-    const [a, b] = gradeSides(team, pl[0], priv, path, m => open(m, pl[0]) && kept(m, pl[0]));
+    const [a, b] = sideTakers(PLACE_SHARE[baseKey(pl[0])], team, pl[0], priv, path, m => open(m, pl[0]) && kept(m, pl[0]));
     pl.forEach((k, i) => { const to = i < placeMajority(pl.length) ? a : b; if (to) give(to, k); else taken.add(k); });
   });
   // 1. the step each resident is learning on the ladder
@@ -1554,7 +1559,7 @@ function sharePlaces(seq, caseSteps, team, specialistSteps, priv) {
     const can = m => surg(S.residents[m.id]).allowed(seq || caseSteps, places[0], priv) && reached(m);
     const cap = m => surg(S.residents[m.id]).within(priv, places[0]) ? places.length : 1; // a stretch is one place
     let lead, second;
-    if (rule.byGrade) [lead = null, second = null] = gradeSides(team, places[0], priv, seq || caseSteps, reached);
+    if (rule.byGrade || rule.sides) [lead = null, second = null] = sideTakers(rule, team, places[0], priv, seq || caseSteps, reached);
     else {
       lead = (rule.lead && team.find(m => m.g === rule.lead && can(m))) || team.find(m => m.steps.includes(places[0])) || null;
       second = team.filter(m => m !== lead && next.includes(m.g) && can(m)).sort((x, y) => next.indexOf(x.g) - next.indexOf(y.g))[0] || null;
