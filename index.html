@@ -544,6 +544,11 @@ const STEP = {
   "ac.decomp": ["Posterior longitudinal ligament opening and osteophyte removal", 10, 8],
   "ac.cage": ["Cervical cage sizing and insertion", 8, 6],
   "ac.plate": ["Anterior plate and screw fixation", 8, 6],
+  // minor procedures
+  "ci.mark": ["Wrist positioning and landmark marking", 3, 2],
+  "ci.inject": ["Steroid injection into the carpal tunnel", 5, 4],
+  "dr.remove": ["Drain removal", 3, 2],
+  "dr.site": ["Drain site closure (stitch or dressing)", 3, 2],
   // epidermoid cyst of the scalp or skull (intradiploic)
   "ep.pos": ["Positioning on a head ring or horseshoe headrest", 3, 2],
   "ep.dissect": ["Dissection of the cyst capsule from the scalp and pericranium", 5, 4],
@@ -612,7 +617,7 @@ const LADDERS = ["shared", "cranio", "vent", "csdh", "spine", "tp"];
 const CASE_LADDERS = ["cranio", "vent", "csdh", "lp", "spine", "tp"];
 const BASIC_EMERGENCY = ["shared", "cranio", "vent", "csdh"];
 /* Built-in steps outside the ladders, offered in the case editor's step picker. */
-const EXTRA_STEPS = [{ name: "Cervical spine", steps: ["ac.pos", "ac.level", "ac.plane", "ac.longus", "ac.disc", "ac.decomp", "ac.cage", "ac.plate", "pc.pos", "pc.muscle", "pc.lms", "pc.lam"] }, { name: "Elective spine", steps: ["sp.reduce", "wd.open", "ld.sample", "ld.debride", "ld.hardware", "ld.disc", "ld.wash", "te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base", "ep.pos", "ep.dissect", "ep.excise", "ep.bone", "ep.dura", "cy.pos", "cy.flap", "cy.dura", "cy.osteo"] }, { name: "Vascular", steps: ["ce.pos", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "ce.drain", "ce.platclose"] }];
+const EXTRA_STEPS = [{ name: "Minor procedures", steps: ["ci.mark", "ci.inject", "dr.remove", "dr.site"] }, { name: "Cervical spine", steps: ["ac.pos", "ac.level", "ac.plane", "ac.longus", "ac.disc", "ac.decomp", "ac.cage", "ac.plate", "pc.pos", "pc.muscle", "pc.lms", "pc.lam"] }, { name: "Elective spine", steps: ["sp.reduce", "wd.open", "ld.sample", "ld.debride", "ld.hardware", "ld.disc", "ld.wash", "te.pos", "te.needle", "te.dilate", "te.foramen", "te.disc", "te.hemo", "te.close"] }, { name: "Elective cranial", steps: ["ec.pos", "ec.flap", "ec.sinus", "ec.duraopen", "ec.debulk", "ec.dissect", "ec.attach", "ec.dura", "ec.bone", "pf.pos", "pf.muscle", "pf.crani", "pf.c1", "pf.duraopen", "pf.dissect", "pf.layers", "sb.cranial", "sb.air", "sb.repair", "sb.peri", "pt.fascia", "pt.temporalis", "pt.crani", "pt.sphenoid", "pt.duraopen", "pt.sylvian", "pt.lesion", "pt.layers", "og.sss", "og.nerves", "og.base", "ep.pos", "ep.dissect", "ep.excise", "ep.bone", "ep.dura", "cy.pos", "cy.flap", "cy.dura", "cy.osteo"] }, { name: "Vascular", steps: ["ce.pos", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "ce.drain", "ce.platclose"] }];
 const groupOf = lvl => lvl >= 6 ? "S" : lvl >= 4 ? "M" : lvl >= 1 ? "J" : "A";
 const GROUP_NAME = { J: "Junior", M: "Midsenior", S: "Senior", A: "Attached" };
 const GROUP_PLURAL = { S: "Seniors", M: "Midseniors", J: "Juniors", A: "Attached" };
@@ -646,6 +651,11 @@ const LIB_BUILTIN = [
     steps: ["ac.pos", "ac.level", "em.incision", "ce.platysma", "ac.plane", "ac.longus", "ac.disc@LV1", "ac.decomp@LV1", "ac.cage@LV1", "ac.disc@LV2", "ac.decomp@LV2", "ac.cage@LV2", "ac.plate", "cr.final", "ce.drain", "ce.platclose", "em.closure"] },
   { id: "b-cea", name: "Carotid endarterectomy", aliases: ["CEA", "Carotid endarterectomy (CEA)", "Endarterectomy"], cat: "adv", ladder: "",
     steps: ["ce.pos", "em.incision", "ce.platysma", "ce.sheath", "ce.expose", "ce.clamp", "ce.arteriotomy", "ce.shunt", "ce.plaque", "ce.repair", "ce.unclamp", "cr.final", "ce.drain", "ce.platclose", "em.closure"] },
+  // minor procedures: one senior or midsenior, Basic limits (gen: 1)
+  { id: "b-ctinj", slots: ["SM"], gen: 1, name: "Carpal tunnel injection", aliases: ["Carpal tunnel steroid injection", "CTS injection", "Steroid injection, carpal tunnel"], cat: "el", ladder: "",
+    steps: ["ci.mark", "ci.inject"] },
+  { id: "b-drain", slots: ["SM"], gen: 1, name: "Drain removal", aliases: ["Removal of drain", "Wound drain removal", "Subgaleal drain removal"], cat: "el", ladder: "",
+    steps: ["dr.remove", "dr.site"] },
   { id: "b-epid", slots: ["S", "M"], name: "Epidermoid cyst excision (scalp or skull)", aliases: ["Epidermoid cyst excision", "Scalp epidermoid cyst excision", "Intradiploic epidermoid cyst excision", "Skull epidermoid cyst"], cat: "el", ladder: "",
     steps: ["ep.pos", "em.incision", "ep.dissect", "ep.excise", "ep.bone", "ep.dura", "em.hemo", "em.closure"] },
   { id: "b-wdeb", name: "Wound debridement", aliases: ["Surgical wound debridement", "Wound infection debridement", "Infected wound debridement", "Wound revision"], cat: "el", ladder: "",
@@ -949,7 +959,9 @@ const PRIV_BY = Object.fromEntries(PRIV.map(p => [p.key, p]));
 const PRIV_CAT = { 1: "Basic", 2: "Core", 3: "Advanced", 4: "Highly specialized" };
 const PRIV_LEVEL = { 0: "Not allowed", 1: "Observes and assists", 2: "Performs key steps", 3: "Leads the case", 4: "Independent", 5: "Full privilege" };
 /* cases that aren't on the list are treated as core (elective or emergency) or advanced */
-const PRIV_GEN = { 2: { key: "", name: "Not on the privilege list (treated as core)", short: "Not on the privilege list", cat: 2, lv: [1, 2, 3, 4, 4, 5, 5], dag: false },
+// minor procedures off the list (a library entry with gen: 1) take the Basic levels of the list's bedside procedures
+const PRIV_GEN = { 1: { key: "", name: "Not on the privilege list (treated as basic)", short: "Not on the privilege list", cat: 1, lv: [3, 4, 5, 5, 5, 5, 5], dag: false },
+  2: { key: "", name: "Not on the privilege list (treated as core)", short: "Not on the privilege list", cat: 2, lv: [1, 2, 3, 4, 4, 5, 5], dag: false },
   3: { key: "", name: "Not on the privilege list (treated as advanced)", short: "Not on the privilege list", cat: 3, lv: [1, 1, 2, 3, 3, 5, 5], dag: false } };
 /* the ladder procedures and the privilege each falls under */
 const LADDER_PRIV = { cranio: "edh", vent: "vps", csdh: "csdh", lp: "lp", spine: "plif", tp: "vps", shared: "edh" };
@@ -1012,6 +1024,7 @@ const STEP_TYPE = {
   "ld.sample": "expose", "ld.debride": "crit", "ld.hardware": "crit", "ld.disc": "crit", "ld.wash": "close",
   "te.pos": "pos", "te.needle": "crit", "te.dilate": "bone", "te.foramen": "bone", "te.disc": "crit", "te.hemo": "hemo", "te.close": "close",
   "wd.open": "expose",
+  "ci.mark": "pos", "ci.inject": "crit", "dr.remove": "close", "dr.site": "close",
   "ep.pos": "pos", "ep.dissect": "expose", "ep.excise": "crit", "ep.bone": "bone", "ep.dura": "dura",
   "pc.pos": "pos", "pc.muscle": "expose", "pc.lms": "crit", "pc.lam": "crit",
   "cy.pos": "pos", "cy.flap": "expose", "cy.dura": "dura", "cy.osteo": "bone",
@@ -1068,7 +1081,8 @@ function privFind(name) {
 /* The privilege a case falls under: chosen on the case, else its library entry's, else its ladder's, else by category. */
 function privOfCase(c) {
   const key = c.priv || ((c.lib || c.libId) && (libById(c.lib || c.libId) || {}).priv) || LADDER_PRIV[c.ladder] || (privFind(c.title || "") || {}).key;
-  return PRIV_BY[key] || PRIV_GEN[catOf(c.cat).rule === "advanced" ? 3 : 2];
+  const gen = !key && (c.lib || c.libId) && (libById(c.lib || c.libId) || {}).gen;
+  return PRIV_BY[key] || PRIV_GEN[gen || (catOf(c.cat).rule === "advanced" ? 3 : 2)];
 }
 /* the procedures each step is used in, for showing a step's limit outside a case */
 function privsOfStep(k) {
